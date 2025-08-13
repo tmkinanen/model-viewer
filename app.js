@@ -23,6 +23,8 @@
   const azPat = document.getElementById('azPat');
   const azUseGit = document.getElementById('azUseGit');
   const azLoadBtn = document.getElementById('azLoadBtn');
+  const settingsBtn = document.getElementById('settingsBtn');
+  const settingsPanel = document.getElementById('settingsPanel');
   const loadingEl = document.getElementById('loading');
   const loadingMsgEl = loadingEl?.querySelector('.msg');
   const logEl = document.getElementById('log');
@@ -44,6 +46,16 @@
   // Prefill saved creds if available (stored only in this browser)
   try { if (azPat) azPat.value = localStorage.getItem('azdo_pat') || ''; } catch {}
   try { if (azUser) azUser.value = localStorage.getItem('azdo_user') || ''; } catch {}
+  try { if (azUrl) azUrl.value = localStorage.getItem('azdo_url') || ''; } catch {}
+  try { if (azRef) azRef.value = localStorage.getItem('azdo_ref') || ''; } catch {}
+  try { if (azUseGit) azUseGit.checked = (localStorage.getItem('azdo_use_git') || 'true') === 'true'; } catch {}
+
+  // Settings toggle
+  settingsBtn?.addEventListener('click', () => {
+    if (!settingsPanel) return;
+    const visible = settingsPanel.style.display !== 'none';
+    settingsPanel.style.display = visible ? 'none' : 'block';
+  });
 
   // Simple UI logger (privacy-safe)
   function uiLog(message, data){
@@ -136,23 +148,14 @@
       return null;
     }
 
-    let org = (azOrg?.value || '').trim();
-    let projectName = (azProject?.value || '').trim();
-    let repo = (azRepo?.value || '').trim();
-
-    if (url){
-      const parsed = parseAzdoRepoUrl(url);
-      if (!parsed){
-        alert('Could not parse Azure DevOps repo URL. Expected format: https://dev.azure.com/{Org}/{Project}/_git/{Repo}');
-        return;
-      }
-      org = parsed.org; projectName = parsed.project; repo = parsed.repo;
-    }
-
-    if(!org || !projectName || !repo){
-      alert('Please provide a valid Repo URL or fill Org, Project, and Repository');
+    const parsed = parseAzdoRepoUrl(url);
+    if (!parsed){
+      alert('Please paste a valid Azure DevOps Repo URL. Expected format: https://dev.azure.com/{Org}/{Project}/_git/{Repo}');
       return;
     }
+    const org = parsed.org;
+    const projectName = parsed.project;
+    const repo = parsed.repo;
     if(!pat){
       alert('Missing PAT. Enter Username and PAT (stored locally) and try again.');
       return;
@@ -215,9 +218,12 @@
         ex.requestId = requestId;
         throw ex;
       }
-      // Store creds locally on success (optional; can be cleared by user via browser tools)
-      if(pat) try { localStorage.setItem('azdo_pat', pat); } catch {}
-      if(username) try { localStorage.setItem('azdo_user', username); } catch {}
+      // Store settings locally on success (optional; can be cleared by user via browser tools)
+      try { if (pat) localStorage.setItem('azdo_pat', pat); } catch {}
+      try { if (username) localStorage.setItem('azdo_user', username); } catch {}
+      try { if (url) localStorage.setItem('azdo_url', url); } catch {}
+      try { if (ref) localStorage.setItem('azdo_ref', ref); } catch {}
+      try { if (azUseGit) localStorage.setItem('azdo_use_git', azUseGit.checked ? 'true' : 'false'); } catch {}
       updateLoading('Parsing project…');
       project = await buildProjectFromEntries(entries);
       updateLoading('Rendering…');
