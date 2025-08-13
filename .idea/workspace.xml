@@ -4,14 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="a06c9853-30fa-4a1f-841c-450c5e55864b" name="Changes" comment="UI changes">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app.js" beforeDir="false" afterPath="$PROJECT_DIR$/app.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/index.js" beforeDir="false" afterPath="$PROJECT_DIR$/index.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/styles.css" afterDir="false" />
-    </list>
+    <list default="true" id="a06c9853-30fa-4a1f-841c-450c5e55864b" name="Changes" comment="DSharp.fi web page look" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -81,7 +74,7 @@
       <option name="presentableId" value="Default" />
       <updated>1755067784530</updated>
       <workItem from="1755067785550" duration="18369000" />
-      <workItem from="1755102915072" duration="13320000" />
+      <workItem from="1755102915072" duration="13663000" />
     </task>
     <task id="LOCAL-00001" summary="Init">
       <option name="closed" value="true" />
@@ -243,7 +236,23 @@
       <option name="project" value="LOCAL" />
       <updated>1755114127997</updated>
     </task>
-    <option name="localTasksCounter" value="21" />
+    <task id="LOCAL-00021" summary="DSharp.fi web page look">
+      <option name="closed" value="true" />
+      <created>1755117037001</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1755117037001</updated>
+    </task>
+    <task id="LOCAL-00022" summary="DSharp.fi web page look">
+      <option name="closed" value="true" />
+      <created>1755117040789</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1755117040789</updated>
+    </task>
+    <option name="localTasksCounter" value="23" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -265,6 +274,7 @@
     <MESSAGE value="attributes and class sizes" />
     <MESSAGE value="Git integration" />
     <MESSAGE value="UI changes" />
-    <option name="LAST_COMMIT_MESSAGE" value="UI changes" />
+    <MESSAGE value="DSharp.fi web page look" />
+    <option name="LAST_COMMIT_MESSAGE" value="DSharp.fi web page look" />
   </component>
 </project>
