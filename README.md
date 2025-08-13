@@ -57,7 +57,7 @@ Notes:
   npm start
 
 ## Data format assumptions
-- Option A: DSharp export in a _Content folder (see data_example). The app parses Memento JSON files with TypeName="Model"/"Submodel"/"Class"/"Association".
+- Option A: DSharp export in a _Content folder (see data_example). The app parses Memento JSON files with TypeName="Model"/"Submodel"/"Class"/"Association" and Diagram/Shape mementos for original positions.
   - Submodels are organized by ParentId/ParentTypeName (under the Conceptual model) to build a hierarchy like Admin/Finance.
   - Classes (TypeName="Class") belong to a Submodel (by ParentId) and associations create references between classes (From/To.ReferencedElementId).
 - Option B: Simple directory-based project where every folder is a model/submodel node.

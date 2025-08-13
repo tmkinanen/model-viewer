@@ -4,8 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="a06c9853-30fa-4a1f-841c-450c5e55864b" name="Changes" comment="top down visibility">
+    <list default="true" id="a06c9853-30fa-4a1f-841c-450c5e55864b" name="Changes" comment="Auto arrange">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app.js" beforeDir="false" afterPath="$PROJECT_DIR$/app.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -59,7 +60,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1755067784530</updated>
-      <workItem from="1755067785550" duration="9376000" />
+      <workItem from="1755067785550" duration="10137000" />
     </task>
     <task id="LOCAL-00001" summary="Init">
       <option name="closed" value="true" />
@@ -149,7 +150,15 @@
       <option name="project" value="LOCAL" />
       <updated>1755083935615</updated>
     </task>
-    <option name="localTasksCounter" value="12" />
+    <task id="LOCAL-00012" summary="Auto arrange">
+      <option name="closed" value="true" />
+      <created>1755085888863</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1755085888863</updated>
+    </task>
+    <option name="localTasksCounter" value="13" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -164,6 +173,7 @@
     <MESSAGE value="gitignore" />
     <MESSAGE value="archetypes and colors" />
     <MESSAGE value="top down visibility" />
-    <option name="LAST_COMMIT_MESSAGE" value="top down visibility" />
+    <MESSAGE value="Auto arrange" />
+    <option name="LAST_COMMIT_MESSAGE" value="Auto arrange" />
   </component>
 </project>

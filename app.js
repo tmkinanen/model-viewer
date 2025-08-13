@@ -315,7 +315,34 @@
       modelsByPath[k].submodels = (modelsByPath[k].submodels || []).sort();
     }
 
-    return { modelsByPath, classesById, classesByFQN, associations };
+    // Collect diagrams to map them to submodels (for shape positions)
+    const diagrams = new Map(); // diagramId -> { id, parentSubmodelId }
+    for (const obj of elements.values()) {
+      if (obj.TypeName === 'Diagram' && obj.ParentTypeName === 'Submodel') {
+        diagrams.set(obj.Id, { id: obj.Id, parentSubmodelId: obj.ParentId });
+      }
+    }
+    // Build shapesByModelPath: modelPath -> { classId -> { x, y, w, h } }
+    const shapesByModelPath = {};
+    for (const obj of elements.values()) {
+      if (obj.MementoClassname === 'ShapeMemento' && obj.TypeName === 'Shape' && obj.ReferencedElementType === 'Class') {
+        const diagramId = obj.ParentId;
+        const diagram = diagrams.get(diagramId);
+        if (!diagram) continue;
+        const submodelId = diagram.parentSubmodelId;
+        const modelPath = buildPath(submodelId) || '';
+        if (!shapesByModelPath[modelPath]) shapesByModelPath[modelPath] = {};
+        const classId = obj.ReferencedElementId || obj.SourceId;
+        if (!classId) continue;
+        const x = typeof obj.Left === 'number' ? obj.Left : 0;
+        const y = typeof obj.Top === 'number' ? obj.Top : 0;
+        const w = typeof obj.Width === 'number' ? obj.Width : 0;
+        const h = typeof obj.Height === 'number' ? obj.Height : 0;
+        shapesByModelPath[modelPath][classId] = { x, y, w, h };
+      }
+    }
+
+    return { modelsByPath, classesById, classesByFQN, associations, shapesByModelPath };
   }
 
   function makeId(s){
@@ -390,8 +417,17 @@
     }
     const localClasses = localClassIds.map(id => project.classesById[id]).filter(Boolean);
 
+    // If there is an explicit diagram for this model path, restrict visible local classes
+    const shapesByModelPath = project.shapesByModelPath || {};
+    const diagramShapes = shapesByModelPath[path] || null;
+    let visibleLocalClasses = localClasses;
+    if (diagramShapes && Object.keys(diagramShapes).length) {
+      const shapeIds = new Set(Object.keys(diagramShapes));
+      visibleLocalClasses = localClasses.filter(c => shapeIds.has(c.id));
+    }
+
     const visitingMap = new Map(); // clsId -> cls
-    for (const cls of localClasses) {
+    for (const cls of visibleLocalClasses) {
       for (const r of (cls.refs || [])) {
         const target = resolveRef(r, path);
         // visiting if target exists and its home path is NOT within descendant set
@@ -400,9 +436,21 @@
         }
       }
     }
+    // Also include any classes explicitly placed on the diagram but not local to this model tree
+    if (diagramShapes && Object.keys(diagramShapes).length) {
+      for (const clsId of Object.keys(diagramShapes)) {
+        const c = project.classesById[clsId];
+        if (!c) continue;
+        const isLocalToTree = descPaths.has(c.homeModelPath || '');
+        const isLocalVisible = visibleLocalClasses.some(lc => lc.id === clsId);
+        if (!isLocalToTree && !isLocalVisible) {
+          visitingMap.set(clsId, c);
+        }
+      }
+    }
     const visitingClasses = [...visitingMap.values()];
 
-    renderModelDiagram(path, model, localClasses, visitingClasses);
+    renderModelDiagram(path, model, visibleLocalClasses, visitingClasses);
   }
 
   function resolveRef(ref, currentModelPath){
@@ -454,13 +502,38 @@
     const modelLayout = layouts.get(path) || {};
     const cols = Math.max(1, Math.floor((1200 - margin*2)/(boxW+gapX)));
     let savedCount = 0;
+    const shapesByModelPath = project.shapesByModelPath || {};
+    const descPathList = [];
+    (function collectDesc(p){
+      if (!project.modelsByPath[p]) return;
+      if (!descPathList.includes(p)) descPathList.push(p);
+      const children = project.modelsByPath[p].submodels || [];
+      for (const c of children) collectDesc(c);
+    })(path);
     nodes.forEach((n,i)=>{
       const saved = modelLayout[n.id];
       if(saved){ n.x = saved.x; n.y = saved.y; savedCount++; }
       else{
-        // temporary grid placement; may be replaced by auto-layout below
-        n.x = margin + (i % cols) * (boxW+gapX);
-        n.y = margin + Math.floor(i / cols) * (boxH+gapY) + 40; // header space
+        // try shape position from diagram files
+        let placed = false;
+        // prefer the node's home model diagram
+        const homeShapes = shapesByModelPath[n.homeModelPath || ''];
+        if (homeShapes && homeShapes[n.id]) {
+          n.x = homeShapes[n.id].x;
+          n.y = homeShapes[n.id].y;
+          savedCount++; placed = true;
+        } else {
+          // then try any descendant diagram of the selected model
+          for (const pth of descPathList) {
+            const shp = shapesByModelPath[pth];
+            if (shp && shp[n.id]) { n.x = shp[n.id].x; n.y = shp[n.id].y; savedCount++; placed = true; break; }
+          }
+        }
+        if (!placed){
+          // temporary grid placement; may be replaced by auto-layout below
+          n.x = margin + (i % cols) * (boxW+gapX);
+          n.y = margin + Math.floor(i / cols) * (boxH+gapY) + 40; // header space
+        }
       }
     });
 
@@ -488,6 +561,36 @@
     }
 
     // Force-directed auto layout and fit-to-view helpers
+    function resolveOverlaps(nodeList){
+      // A gentle, bounded pass to reduce rectangle overlaps
+      const N = nodeList.length;
+      if (N <= 1) return;
+      const iterations = 8;
+      for (let it = 0; it < iterations; it++){
+        let any = false;
+        for (let i = 0; i < N; i++){
+          for (let j = i+1; j < N; j++){
+            const a = nodeList[i], b = nodeList[j];
+            const ax2 = a.x + boxW, ay2 = a.y + boxH;
+            const bx2 = b.x + boxW, by2 = b.y + boxH;
+            const overlapX = Math.min(ax2, bx2) - Math.max(a.x, b.x);
+            const overlapY = Math.min(ay2, by2) - Math.max(a.y, b.y);
+            if (overlapX > 0 && overlapY > 0){
+              any = true;
+              if (overlapX < overlapY){
+                const push = overlapX/2 + 1; // small nudge
+                if (a.x < b.x){ a.x -= push; b.x += push; } else { a.x += push; b.x -= push; }
+              } else {
+                const push = overlapY/2 + 1;
+                if (a.y < b.y){ a.y -= push; b.y += push; } else { a.y += push; b.y -= push; }
+              }
+            }
+          }
+        }
+        if (!any) break;
+      }
+    }
+
     function autoLayout(nodeList, links){
       const N = nodeList.length;
       if (N === 0) return;
@@ -589,7 +692,7 @@
         if (n.x + boxW > maxX) maxX = n.x + boxW;
         if (n.y + boxH > maxY) maxY = n.y + boxH;
       }
-      const padTop = 40 + margin; // leave room for header area inside view
+      const padTop = margin; // place content near the top of the SVG
       const pad = margin;
       // shift nodes so they start at padding
       const dx = (minX === Infinity ? 0 : (pad - minX));
@@ -597,6 +700,14 @@
       if (dx !== 0 || dy !== 0){
         for (const n of nodeList){ n.x += dx; n.y += dy; }
         minX += dx; maxX += dx; minY += dy; maxY += dy;
+      }
+      // Recompute bounds after shifting
+      minX = Infinity; minY = Infinity; maxX = -Infinity; maxY = -Infinity;
+      for (const n of nodeList){
+        if (n.x < minX) minX = n.x;
+        if (n.y < minY) minY = n.y;
+        if (n.x + boxW > maxX) maxX = n.x + boxW;
+        if (n.y + boxH > maxY) maxY = n.y + boxH;
       }
       const width = Math.max(600, (maxX - minX) + pad + margin);
       const height = Math.max(400, (maxY - minY) + pad + margin);
@@ -608,6 +719,8 @@
       autoLayout(nodes, layoutLinks);
     }
 
+    // After positions are set, resolve any residual overlaps even if using saved/shape positions
+    resolveOverlaps(nodes);
     // After positions are set, compute bounds and update viewBox to ensure visibility
     fitSvgToContent(nodes);
 
