@@ -250,6 +250,24 @@
     const classesById = {};
     const classesByFQN = {};
 
+    // Collect class details to extract explicit archetypes (Peter Coad)
+    const classDetailsByClassId = new Map(); // classId -> details object
+    for (const obj of elements.values()) {
+      if (obj.TypeName === 'Class details' && obj.ParentTypeName === 'Class' && obj.ParentId) {
+        classDetailsByClassId.set(obj.ParentId, obj);
+      }
+    }
+
+    function normalizeCoadArchetype(s){
+      if (!s || typeof s !== 'string') return null;
+      const t = s.trim().toLowerCase();
+      if (t.startsWith('party')) return 'ppt';
+      if (t === 'role') return 'role';
+      if (t.startsWith('moment')) return 'moment';
+      if (t === 'description') return 'desc';
+      return null;
+    }
+
     // Gather classes and attach to their submodel path
     for (const obj of elements.values()) {
       if (obj.TypeName === 'Class' && obj.ParentTypeName === 'Submodel') {
@@ -257,6 +275,10 @@
         const id = obj.Id;
         const name = obj.Name || id;
         const cls = { id, name, homeModelPath: modelPath || '', refs: [] };
+        // attach explicit archetype if present in class details
+        const det = classDetailsByClassId.get(id);
+        const archNorm = normalizeCoadArchetype(det?.Archetype);
+        if (archNorm) cls._archMeta = archNorm;
         classesById[id] = cls;
         if (modelPath) classesByFQN[modelPath + '/' + name] = cls;
         // ensure the model exists
@@ -352,13 +374,28 @@
       svg.innerHTML='';
       return;
     }
-    // Compute local and visiting classes
-    const localClasses = model.classes.map(id=>project.classesById[id]).filter(Boolean);
+    // Compute local and visiting classes across this model and all its descendant submodels
+    const descPaths = new Set();
+    (function collect(p){
+      if (!project.modelsByPath[p] || descPaths.has(p)) return;
+      descPaths.add(p);
+      const children = project.modelsByPath[p].submodels || [];
+      for (const c of children) collect(c);
+    })(path);
+
+    const localClassIds = [];
+    for (const p of descPaths) {
+      const m = project.modelsByPath[p];
+      if (m && Array.isArray(m.classes)) localClassIds.push(...m.classes);
+    }
+    const localClasses = localClassIds.map(id => project.classesById[id]).filter(Boolean);
+
     const visitingMap = new Map(); // clsId -> cls
-    for(const cls of localClasses){
-      for(const r of cls.refs||[]){
+    for (const cls of localClasses) {
+      for (const r of (cls.refs || [])) {
         const target = resolveRef(r, path);
-        if(target && target.homeModelPath !== path){
+        // visiting if target exists and its home path is NOT within descendant set
+        if (target && !descPaths.has(target.homeModelPath || '')) {
           visitingMap.set(target.id, target);
         }
       }
@@ -428,13 +465,14 @@
     // Edges: prefer canonical associations (single edge per association with multiplicities)
     const edges = [];
     const nodesById = Object.fromEntries(nodes.map(n=>[n.id,n]));
+    const localSet = new Set(localClasses.map(c=>c.id));
     if (Array.isArray(project.associations) && project.associations.length) {
       for (const a of project.associations) {
         const srcNode = nodesById[a.fromId];
         const dstNode = nodesById[a.toId];
         // show an edge only if at least one end is local to this model and both ends are visible
-        const isSrcLocal = !!localClasses.find(c=>c.id===a.fromId);
-        const isDstLocal = !!localClasses.find(c=>c.id===a.toId);
+        const isSrcLocal = localSet.has(a.fromId);
+        const isDstLocal = localSet.has(a.toId);
         if (!(isSrcLocal || isDstLocal)) continue;
         if (!srcNode || !dstNode) continue;
         edges.push({ src: srcNode, dst: dstNode, fromMult: a.fromMult || '', toMult: a.toMult || '' });
@@ -716,22 +754,28 @@
   // Determine Peter Coad archetype from class name and simple heuristics
   // Returns one of: 'ppt' (Party/Place/Thing), 'role', 'desc', 'moment'
   function determineArchetype(cls){
+    // Prefer explicit metadata from DSharp Class details if present
+    if (cls && cls._archMeta) return cls._archMeta;
     const name = (cls?.name || '').trim();
     const n = name.toLowerCase();
     // If future DSharp metadata provides explicit tags/stereotypes, prefer them here
     // e.g., cls.stereotype or cls.tags
 
     // Explicit keywords lists (whitelists beat suffix rules)
+    const descKeywords = new Set([
+      'gender','sex'
+    ]);
     const pptKeywords = new Set([
-      'customer','account','person','user','employee','company','organization','organisation','vendor','supplier','client','product','item','article','vehicle','asset','document','file','address','city','country','location','place','store','warehouse','department','project','team','accounting entry','accountingentry','account','orderline','order line'
+      'customer','account','person','user','employee','company','organization','organisation','vendor','supplier','client','product','item','article','vehicle','asset','document','file','address','city','country','location','place','store','warehouse','department','team','accounting entry','accountingentry','account','orderline','order line'
     ]);
     const momentKeywords = new Set([
-      'order','reservation','booking','payment','invoice','shipment','delivery','event','session','transaction','transfer','change','movement','enrollment','enrolment','subscription','hire','visit','interaction','request','response','message','task','activity','assignment','audit','log','record','entry'
+      'order','reservation','booking','payment','invoice','shipment','delivery','event','session','transaction','transfer','change','movement','enrollment','enrolment','subscription','hire','visit','interaction','request','response','message','task','activity','assignment','audit','log','record','entry','project'
     ]);
     const descSuffixes = ['type','kind','category','status','spec','specification','description','info','details','rule','policy','plan','option','parameter','setting','template','profile','code','reason'];
-    const roleKeywords = new Set(['owner','manager','driver','approver','assignee','reviewer','member','admin','agent','operator','controller','holder','teacher','student','author','editor']);
+    const roleKeywords = new Set(['owner','manager','driver','approver','assignee','reviewer','member','admin','agent','operator','controller','holder','teacher','student','author','editor','membership','project membership']);
 
-    // 1) Descriptions by suffix
+    // 1) Descriptions by explicit keywords or suffix
+    if(descKeywords.has(n)) return 'desc';
     for(const s of descSuffixes){ if(n===s || n.endsWith(' '+s) || n.endsWith('_'+s) || n.endsWith('-'+s)) return 'desc'; }
 
     // 2) Moment-Interval by explicit keywords
