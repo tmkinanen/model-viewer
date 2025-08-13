@@ -32,7 +32,7 @@ Steps:
 
 ## Loading a project
 
-You have two options:
+You have two options (plus a built-in demo):
 
 Note: After loading, no model is opened automatically. The Root level in the tree is expanded so you can see the first level of models; click a model to open its diagram.
 
@@ -55,8 +55,14 @@ Note: After loading, no model is opened automatically. The Root level in the tre
 
 Notes:
 - Credentials are user-specific and provided in the browser; the server proxies the request using your per-request PAT and does not store it.
-- Fast mode (local clone) requires git installed on the server PATH. The server clones to a temporary directory and deletes it after reading files. Secrets are never logged; remote URLs are redacted in logs.
 - Endpoint used: GET /api/azdo/items?org=...&project=...&repo=...&ref=... with optional header X-AZDO-PAT (raw PAT) or X-AZDO-Auth (e.g., "Basic base64").
+
+Themes:
+- Open Settings and choose Theme (DSharp, Light, or Dark). The selection is stored locally and applied immediately.
+- You can switch themes anytime; the UI colors, header, and inputs adapt accordingly.
+
+Demo project:
+- Click “Load Demo Project” to load the included data_example/DemoDW - Tutorial 10 dataset. It uses the DSharp _Content format and demonstrates the viewer’s parsing and rendering.
 
 Examples:
 - Given Azure DevOps repo URL:

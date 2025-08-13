@@ -25,6 +25,7 @@
   const azLoadBtn = document.getElementById('azLoadBtn');
   const settingsBtn = document.getElementById('settingsBtn');
   const settingsPanel = document.getElementById('settingsPanel');
+  const themeSelect = document.getElementById('themeSelect');
   const loadingEl = document.getElementById('loading');
   const loadingMsgEl = loadingEl?.querySelector('.msg');
   const logEl = document.getElementById('log');
@@ -49,12 +50,29 @@
   try { if (azUrl) azUrl.value = localStorage.getItem('azdo_url') || ''; } catch {}
   try { if (azRef) azRef.value = localStorage.getItem('azdo_ref') || ''; } catch {}
   try { if (azUseGit) azUseGit.checked = (localStorage.getItem('azdo_use_git') || 'true') === 'true'; } catch {}
+  // Theme init
+  (function(){
+    const saved = (()=>{ try { return localStorage.getItem('theme') || 'dsharp'; } catch { return 'dsharp'; } })();
+    applyTheme(saved);
+    if (themeSelect) themeSelect.value = saved;
+  })();
 
   // Settings toggle
   settingsBtn?.addEventListener('click', () => {
     if (!settingsPanel) return;
     const visible = settingsPanel.style.display !== 'none';
     settingsPanel.style.display = visible ? 'none' : 'block';
+  });
+
+  // Theme apply/persist
+  function applyTheme(name){
+    const t = (name || 'dsharp').toLowerCase();
+    try { document.documentElement.setAttribute('data-theme', t); } catch {}
+  }
+  themeSelect?.addEventListener('change', () => {
+    const val = themeSelect.value || 'dsharp';
+    applyTheme(val);
+    try { localStorage.setItem('theme', val); } catch {}
   });
 
   // Simple UI logger (privacy-safe)
@@ -116,17 +134,37 @@
     }
   });
 
-  demoBtn.addEventListener('click', () => {
+  demoBtn.addEventListener('click', async () => {
     try{
       showLoading('Loading demo…');
-      project = buildDemoProject();
+      // Fetch demo entries from the server (DemoDW - Tutorial 10)
+      const resp = await fetch('/api/demo');
+      let data;
+      try {
+        data = await resp.json();
+      } catch {
+        // Fallback to text if server didn't return JSON
+        const text = await resp.text().catch(()=> '');
+        data = { error: text || 'Non-JSON response' };
+      }
+      if (!resp.ok) {
+        const status = resp.status;
+        const errMsg = (data && data.error) ? data.error : 'Failed to load demo project';
+        throw new Error(`${errMsg}${status? ` (HTTP ${status})` : ''}`);
+      }
+      const entries = (data && data.entries) || [];
+      updateLoading('Parsing project…');
+      project = await buildProjectFromEntries(entries);
       rootPath = '';
+      updateLoading('Rendering…');
       // Expand root level and start with no model opened
       expanded.clear();
       try { const rootModel = findRootModelPath(project.modelsByPath); expanded.add(rootModel); } catch {}
       renderTree(project);
       modelHeader.textContent = 'Select a model from the tree…';
       svg.innerHTML = '';
+    } catch(e){
+      alert('Demo load failed: ' + (e && e.message ? e.message : String(e)));
     } finally {
       hideLoading();
     }
@@ -1427,7 +1465,7 @@
       });
       const label = createSVG('text', { x: n.x + 12, y: n.y + 24, class: 'class-label' });
       label.textContent = n.name;
-      const sub = createSVG('text', { x: n.x + 12, y: n.y + 44, class: 'class-label', fill: '#555' });
+      const sub = createSVG('text', { x: n.x + 12, y: n.y + 44, class: 'class-label', fill: '#000' });
       sub.textContent = n._visiting ? `(from ${n.homeModelPath||'Root'})` : '';
 
       g.appendChild(rect);
@@ -1453,7 +1491,7 @@
         if (!expSet.has(n.id) || list.length === 0) return;
         const startY = n.y + 64; // below subtitle
         list.forEach((a, i) => {
-          const t = createSVG('text', { x: n.x + 12, y: startY + i*16, class: 'class-label', fill: '#222' });
+          const t = createSVG('text', { x: n.x + 12, y: startY + i*16, class: 'class-label', fill: '#000' });
           t.textContent = `${a.name}${a.datatype? ': '+a.datatype:''}`;
           attrsGroup.appendChild(t);
         });
