@@ -1,6 +1,6 @@
 # DSharp Model Viewer
 
-A minimal web app to visualize a DSharp‑like UML project structure. It shows models/submodels, renders class nodes, and draws references. Classes referenced from other models appear as “visiting” with dashed borders. You can drag class boxes in the diagram to rearrange them; the layout is remembered per model during your session.
+A minimal web app to visualize a DSharp‑like UML project structure. It shows models/submodels, renders class nodes, and draws references. Classes referenced from other models appear as “visiting” with dashed borders. You can drag class boxes in the diagram to rearrange them; the layout is remembered per model during your session. The diagram supports pan/zoom (mouse wheel to zoom, drag background to pan), plus controls: +, −, 100%, Fit, and Arrange. Arrange cycles through a few automatic layouts (Auto/Force, Grid, Circle, Hierarchical). On first open of a model, the view is automatically zoomed to fit.
 
 Classes are colored by Peter Coad’s Object Modeling in Color archetypes: Party/Place/Thing (green), Role (yellow), Description (blue), Moment-Interval (pink). When loading a DSharp _Content export, the viewer reads Class details (…_CLASS_DETAILS.json) and uses the explicit Archetype there; it falls back to a name-based heuristic only if metadata is missing. Visiting classes keep a dashed border but retain their archetype color.
 

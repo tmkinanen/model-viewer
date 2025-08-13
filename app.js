@@ -26,6 +26,10 @@
   const layouts = new Map();
   // Expanded tree nodes (paths); start empty so nodes are collapsed initially
   const expanded = new Set();
+  // Per-model zoom/pan state: modelPath -> { x, y, scale, fitted }
+  const zoomStates = new Map();
+  // Per-model arrange state: modelPath -> { index }
+  const arrangeStates = new Map();
 
   folderInput.addEventListener('change', async (e) => {
     const files = [...e.target.files];
@@ -564,20 +568,37 @@
 
   function renderModelDiagram(path, model, localClasses, visitingClasses){
     modelHeader.innerHTML = `
-      <div><strong>Model:</strong> ${model.name} <span style="color:#666">(${path||'Root'})</span></div>
-      <div class="legend">
-        <span><span class="swatch ppt"></span> Party/Place/Thing</span>
-        <span><span class="swatch role"></span> Role</span>
-        <span><span class="swatch desc"></span> Description</span>
-        <span><span class="swatch moment"></span> Moment-Interval</span>
-        <span><span class="swatch visiting"></span> Visiting (dashed)</span>
-        <span style="margin-left:auto;color:#666;font-size:12px">Tip: Drag class boxes to rearrange</span>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div><strong>Model:</strong> ${model.name} <span style="color:#666">(${path||'Root'})</span></div>
+        <div class="legend" style="flex:1 1 auto">
+          <span><span class="swatch ppt"></span> Party/Place/Thing</span>
+          <span><span class="swatch role"></span> Role</span>
+          <span><span class="swatch desc"></span> Description</span>
+          <span><span class="swatch moment"></span> Moment-Interval</span>
+          <span><span class="swatch visiting"></span> Visiting (dashed)</span>
+          <span style="margin-left:auto;color:#666;font-size:12px">Tip: Drag class boxes to rearrange</span>
+        </div>
+        <div class="zoombar" style="display:flex;gap:6px;align-items:center">
+          <button id="zoomOut" class="btn secondary" title="Zoom out">−</button>
+          <button id="zoomIn" class="btn secondary" title="Zoom in">+</button>
+          <button id="zoomReset" class="btn secondary" title="Reset zoom">100%</button>
+          <button id="zoomFit" class="btn" title="Zoom to fit">Fit</button>
+          <button id="arrangeBtn" class="btn" title="Arrange (cycle)">Arrange</button>
+        </div>
       </div>
     `;
     // Layout
     svg.innerHTML = '';
     ensureDefs(svg);
+    // viewport group for pan/zoom
+    const vp = createSVG('g', { id: 'vp' });
+    svg.appendChild(vp);
     const margin = 20, boxW=180, boxH=60, gapX=40, gapY=40;
+
+    // Initialize view (pan/zoom) for this model
+    const view = Object.assign({ x: 0, y: 0, scale: 1, fitted: false }, zoomStates.get(path) || {});
+    function applyView(){ vp.setAttribute('transform', `translate(${view.x} ${view.y}) scale(${view.scale})`); }
+    function saveView(){ zoomStates.set(path, { x: view.x, y: view.y, scale: view.scale, fitted: true }); }
 
     const all = [...localClasses.map(c=>({...c,_visiting:false})), ...visitingClasses.map(c=>({...c,_visiting:true}))];
     // Deduplicate by id keeping visiting true if any
@@ -819,6 +840,62 @@
     // After positions are set, compute bounds and update viewBox to ensure visibility
     fitSvgToContent(nodes);
 
+    // Helper to compute content bounds in content coordinates
+    function contentBounds(){
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const n of nodes){
+        if (n.x < minX) minX = n.x;
+        if (n.y < minY) minY = n.y;
+        if (n.x + boxW > maxX) maxX = n.x + boxW;
+        if (n.y + boxH > maxY) maxY = n.y + boxH;
+      }
+      if (minX === Infinity) return { minX:0, minY:0, width:0, height:0 };
+      return { minX, minY, width: maxX - minX, height: maxY - minY };
+    }
+
+    // Zoom utilities
+    function zoomAt(pointSvg, factor){
+      const newScale = Math.max(0.1, Math.min(8, view.scale * factor));
+      const px = pointSvg.x, py = pointSvg.y;
+      const cx = (px - view.x) / view.scale;
+      const cy = (py - view.y) / view.scale;
+      view.x = px - cx * newScale;
+      view.y = py - cy * newScale;
+      view.scale = newScale;
+      applyView(); saveView();
+    }
+    function zoomToFit(pad=20){
+      const b = contentBounds();
+      const r = svg.getBoundingClientRect();
+      const vw = r.width, vh = r.height;
+      if (vw <= 0 || vh <= 0 || b.width === 0 || b.height === 0){
+        view.x = 0; view.y = 0; view.scale = 1; applyView(); saveView(); return;
+      }
+      // Account for the SVG's intrinsic viewBox scaling: one SVG unit is vw/vbWidth pixels
+      const vb = svg.viewBox?.baseVal;
+      const vbW = vb ? vb.width : (parseFloat(svg.getAttribute('viewBox')?.split(/\s+/)[2]||'1200')||1200);
+      const vbH = vb ? vb.height : (parseFloat(svg.getAttribute('viewBox')?.split(/\s+/)[3]||'800')||800);
+      const baseScaleX = vbW ? (vw / vbW) : 1;
+      const baseScaleY = vbH ? (vh / vbH) : 1;
+      // Determine scale in content units so that baseScale * view.scale * content fits into viewport minus padding
+      const sx = (vw - pad*2) / (b.width * baseScaleX);
+      const sy = (vh - pad*2) / (b.height * baseScaleY);
+      const s = Math.max(0.1, Math.min(8, Math.min(sx, sy)));
+      // Compute translation in SVG units (pre-baseScale) so that after baseScale and view.scale the padding is achieved
+      const px = (pad / baseScaleX) - b.minX * s;
+      const py = (pad / baseScaleY) - b.minY * s;
+      view.scale = s; view.x = px; view.y = py;
+      applyView(); saveView();
+    }
+    function zoomReset(){ view.scale = 1; view.x = 0; view.y = 0; applyView(); saveView(); }
+
+    // Apply initial view (auto-fit if first open for this model)
+    applyView();
+    if (!zoomStates.has(path) || zoomStates.get(path)?.fitted === false){
+      // Auto-fit on first open for convenience
+      zoomToFit(24);
+    }
+
     // Edges: prefer canonical associations (single edge per association with multiplicities)
     const edges = [];
     const nodesById = Object.fromEntries(nodes.map(n=>[n.id,n]));
@@ -863,9 +940,9 @@
       labelSrc.textContent = e.fromMult || '';
       labelDst.textContent = e.toMult || '';
       edgeElems.push({ e, pathEl, labelSrc, labelDst });
-      svg.appendChild(pathEl);
-      svg.appendChild(labelSrc);
-      svg.appendChild(labelDst);
+      vp.appendChild(pathEl);
+      vp.appendChild(labelSrc);
+      vp.appendChild(labelDst);
     }
     function attachmentPoint(node, otherCenter) {
       const cx = node.x + boxW/2;
@@ -1010,7 +1087,7 @@
       g.appendChild(rect);
       g.appendChild(label);
       g.appendChild(sub);
-      svg.appendChild(g);
+      vp.appendChild(g);
 
       // Store element refs for fast updates
       n._el = { g, rect, label, sub };
@@ -1031,18 +1108,27 @@
     let dragState = null; // { id, offsetX, offsetY }
 
     function svgPointFromEvent(evt){
+      // Convert client coordinates to outer SVG coords
       const pt = svg.createSVGPoint();
       pt.x = evt.clientX; pt.y = evt.clientY;
-      const ctm = svg.getScreenCTM();
-      return ctm ? pt.matrixTransform(ctm.inverse()) : { x: evt.clientX, y: evt.clientY };
+      const svgCtm = svg.getScreenCTM();
+      return svgCtm ? pt.matrixTransform(svgCtm.inverse()) : { x: evt.clientX, y: evt.clientY };
+    }
+    function contentPointFromEvent(evt, view){
+      const pSvg = svgPointFromEvent(evt);
+      const s = view.scale || 1;
+      const x = (pSvg.x - view.x) / s;
+      const y = (pSvg.y - view.y) / s;
+      return { x, y };
     }
 
     function onPointerDown(evt){
+      evt.stopPropagation();
       const g = evt.currentTarget;
       const id = g.getAttribute('data-id');
       const node = nodesById[id];
       if(!node) return;
-      const p = svgPointFromEvent(evt);
+      const p = contentPointFromEvent(evt, view);
       dragState = { id, offsetX: p.x - node.x, offsetY: p.y - node.y };
       g.setPointerCapture?.(evt.pointerId);
       evt.preventDefault();
@@ -1050,7 +1136,7 @@
     function onPointerMove(evt){
       if(!dragState) return;
       const node = nodesById[dragState.id];
-      const p = svgPointFromEvent(evt);
+      const p = contentPointFromEvent(evt, view);
       node.x = p.x - dragState.offsetX;
       node.y = p.y - dragState.offsetY;
       // Update DOM positions
@@ -1077,6 +1163,8 @@
     if(svg._dragHandlers){
       svg.removeEventListener('pointermove', svg._dragHandlers.move);
       svg.removeEventListener('pointerup', svg._dragHandlers.up);
+      svg.removeEventListener('wheel', svg._dragHandlers.wheel);
+      svg.removeEventListener('pointerdown', svg._dragHandlers.down);
     }
     svg._dragHandlers = { move: onPointerMove, up: onPointerUp };
 
@@ -1088,6 +1176,157 @@
     }
     svg.addEventListener('pointermove', onPointerMove);
     svg.addEventListener('pointerup', onPointerUp);
+
+    // Pan/zoom handlers on background
+    let panning = null; // { startX, startY, viewX, viewY }
+    function onSvgPointerDown(evt){
+      // start panning only if clicking background (svg) or vp, not a node
+      if (evt.target === svg || evt.target === vp) {
+        const p = svgPointFromEvent(evt);
+        panning = { startX: p.x, startY: p.y, viewX: view.x, viewY: view.y };
+        svg.setPointerCapture?.(evt.pointerId);
+      }
+    }
+    function onSvgPointerMove(evt){
+      if (!panning) return;
+      const p = svgPointFromEvent(evt);
+      view.x = panning.viewX + (p.x - panning.startX);
+      view.y = panning.viewY + (p.y - panning.startY);
+      applyView(); saveView();
+    }
+    function onSvgPointerUp(){ panning = null; }
+    function onWheel(evt){
+      evt.preventDefault();
+      const p = svgPointFromEvent(evt);
+      const factor = evt.deltaY < 0 ? 1.1 : 0.9;
+      zoomAt(p, factor);
+    }
+    svg.addEventListener('pointerdown', onSvgPointerDown);
+    svg.addEventListener('pointermove', onSvgPointerMove);
+    svg.addEventListener('pointerup', onSvgPointerUp);
+    svg.addEventListener('wheel', onWheel, { passive: false });
+    svg._dragHandlers = { move: onPointerMove, up: onPointerUp, wheel: onWheel, down: onSvgPointerDown };
+
+    // Zoom buttons
+    document.getElementById('zoomIn')?.addEventListener('click', ()=>{
+      const r = svg.getBoundingClientRect();
+      zoomAt({ x: r.width/2, y: r.height/2 }, 1.2);
+    });
+    document.getElementById('zoomOut')?.addEventListener('click', ()=>{
+      const r = svg.getBoundingClientRect();
+      zoomAt({ x: r.width/2, y: r.height/2 }, 1/1.2);
+    });
+    document.getElementById('zoomReset')?.addEventListener('click', ()=>{ zoomReset(); });
+    document.getElementById('zoomFit')?.addEventListener('click', ()=>{ zoomToFit(24); });
+
+    // Arrange button (cycles through modes)
+    const arrangeBtn = document.getElementById('arrangeBtn');
+    if (arrangeBtn) {
+      const modes = ['auto', 'grid', 'circle', 'hier'];
+      function updateArrangeLabel(idx){ arrangeBtn.textContent = 'Arrange'; arrangeBtn.title = 'Arrange (current: ' + modes[idx] + ')'; }
+      const st = arrangeStates.get(path) || { index: -1 };
+      if (st.index < 0) { st.index = 0; arrangeStates.set(path, st); }
+      updateArrangeLabel(st.index);
+
+      function updateNodeDom(n){
+        n._el.rect.setAttribute('x', n.x);
+        n._el.rect.setAttribute('y', n.y);
+        n._el.label.setAttribute('x', n.x + 12);
+        n._el.label.setAttribute('y', n.y + 24);
+        n._el.sub.setAttribute('x', n.x + 12);
+        n._el.sub.setAttribute('y', n.y + 44);
+      }
+      function saveLayout(){
+        const ml = layouts.get(path) || {};
+        for (const n of nodes){ ml[n.id] = { x: n.x, y: n.y }; }
+        layouts.set(path, ml);
+      }
+
+      function arrange(mode){
+        const N = nodes.length;
+        if (N === 0) return;
+        if (mode === 'auto'){
+          autoLayout(nodes, layoutLinks);
+        } else if (mode === 'grid'){
+          const cols = Math.max(1, Math.ceil(Math.sqrt(N)));
+          const startX = margin, startY = margin;
+          for (let i=0;i<N;i++){
+            const n = nodes[i];
+            const c = i % cols; const r = Math.floor(i / cols);
+            n.x = startX + c * (boxW + gapX);
+            n.y = startY + r * (boxH + gapY);
+          }
+        } else if (mode === 'circle'){
+          const pad = margin + 40;
+          const r = Math.max(80, Math.min(300, 30 + N * 12));
+          const cx = pad + r + boxW/2;
+          const cy = pad + r + boxH/2;
+          for (let i=0;i<N;i++){
+            const ang = (2*Math.PI * i) / N;
+            const px = cx + r * Math.cos(ang) - boxW/2;
+            const py = cy + r * Math.sin(ang) - boxH/2;
+            nodes[i].x = px; nodes[i].y = py;
+          }
+        } else if (mode === 'hier'){
+          // Simple layered layout based on outgoing edges
+          const adj = new Map(); const indeg = new Map();
+          for (const n of nodes){ adj.set(n.id, []); indeg.set(n.id, 0); }
+          for (const e of edges){
+            if (!adj.has(e.src.id) || !adj.has(e.dst.id)) continue;
+            adj.get(e.src.id).push(e.dst.id);
+            indeg.set(e.dst.id, (indeg.get(e.dst.id) || 0) + 1);
+          }
+          // pick root: min indegree (fallback first node)
+          let root = nodes[0]?.id || null;
+          let minIn = Infinity;
+          for (const n of nodes){ const d = indeg.get(n.id) ?? 0; if (d < minIn){ minIn = d; root = n.id; } }
+          // BFS layers
+          const layer = new Map();
+          const q = [];
+          if (root){ layer.set(root, 0); q.push(root); }
+          while(q.length){
+            const v = q.shift();
+            const L = layer.get(v) || 0;
+            for (const w of (adj.get(v) || [])){
+              if (!layer.has(w)){ layer.set(w, L+1); q.push(w); }
+            }
+          }
+          // Unreached nodes: place at layer 0+ spread
+          for (const n of nodes){ if (!layer.has(n.id)) layer.set(n.id, 0); }
+          // group by layer
+          const byLayer = new Map();
+          for (const n of nodes){ const L = layer.get(n.id)||0; if (!byLayer.has(L)) byLayer.set(L, []); byLayer.get(L).push(n); }
+          const sortedLayers = [...byLayer.keys()].sort((a,b)=>a-b);
+          const lx = boxW + gapX + 60; const ly = boxH + gapY;
+          let xBase = margin, yBase = margin;
+          for (const L of sortedLayers){
+            const arr = byLayer.get(L);
+            arr.sort((a,b)=> (a.name||'').localeCompare(b.name||''));
+            for (let i=0;i<arr.length;i++){
+              const n = arr[i];
+              n.x = xBase + L * lx;
+              n.y = yBase + i * ly;
+            }
+          }
+        }
+        // Post-process: avoid overlaps and fit
+        resolveOverlaps(nodes);
+        fitSvgToContent(nodes);
+        // Update DOM and edges
+        for (const n of nodes){ updateNodeDom(n); }
+        redrawAllEdges();
+        saveLayout();
+        zoomToFit(24);
+      }
+
+      arrangeBtn.addEventListener('click', ()=>{
+        const state = arrangeStates.get(path) || { index: 0 };
+        state.index = (state.index + 1) % modes.length;
+        arrangeStates.set(path, state);
+        updateArrangeLabel(state.index);
+        arrange(modes[state.index]);
+      });
+    }
   }
 
   function centerRight(node, w, h){ return { x: node.x + w, y: node.y + h/2 }; }
