@@ -434,7 +434,7 @@
     // Layout
     svg.innerHTML = '';
     ensureDefs(svg);
-    const margin = 24, boxW=180, boxH=60, gapX=40, gapY=40;
+    const margin = 20, boxW=180, boxH=60, gapX=40, gapY=40;
 
     const all = [...localClasses.map(c=>({...c,_visiting:false})), ...visitingClasses.map(c=>({...c,_visiting:true}))];
     // Deduplicate by id keeping visiting true if any
@@ -453,14 +453,163 @@
     // Load or initialize layout
     const modelLayout = layouts.get(path) || {};
     const cols = Math.max(1, Math.floor((1200 - margin*2)/(boxW+gapX)));
+    let savedCount = 0;
     nodes.forEach((n,i)=>{
       const saved = modelLayout[n.id];
-      if(saved){ n.x = saved.x; n.y = saved.y; }
+      if(saved){ n.x = saved.x; n.y = saved.y; savedCount++; }
       else{
+        // temporary grid placement; may be replaced by auto-layout below
         n.x = margin + (i % cols) * (boxW+gapX);
         n.y = margin + Math.floor(i / cols) * (boxH+gapY) + 40; // header space
       }
     });
+
+    // Build links for layout (undirected)
+    const nodesByIdMap = Object.fromEntries(nodes.map(n=>[n.id,n]));
+    const localSetForLayout = new Set(localClasses.map(c=>c.id));
+    const layoutLinks = [];
+    if (Array.isArray(project.associations) && project.associations.length) {
+      for (const a of project.associations) {
+        if (!(localSetForLayout.has(a.fromId) || localSetForLayout.has(a.toId))) continue;
+        if (nodesByIdMap[a.fromId] && nodesByIdMap[a.toId]) layoutLinks.push([a.fromId, a.toId]);
+      }
+    } else {
+      const seen = new Set();
+      for (const c of localClasses) {
+        for (const r of c.refs || []) {
+          const t = resolveRef(r, model.path);
+          if (!t) continue;
+          if (!nodesByIdMap[c.id] || !nodesByIdMap[t.id]) continue;
+          const key = [c.id, t.id].sort().join('|');
+          if (seen.has(key)) continue; seen.add(key);
+          layoutLinks.push([c.id, t.id]);
+        }
+      }
+    }
+
+    // Force-directed auto layout and fit-to-view helpers
+    function autoLayout(nodeList, links){
+      const N = nodeList.length;
+      if (N === 0) return;
+      const center = { x: 600, y: 400 };
+      const area = 850 * 600;
+      const k = Math.sqrt(area / (N + 1));
+      const iterations = Math.min(400, 100 + N * 15);
+      let t = k; // temperature
+      const cooling = t / iterations;
+      // Ensure initial positions
+      for (let i = 0; i < N; i++){
+        const n = nodeList[i];
+        if (typeof n.x !== 'number' || typeof n.y !== 'number'){
+          const angle = (2*Math.PI*i)/N;
+          n.x = center.x + Math.cos(angle) * 200;
+          n.y = center.y + Math.sin(angle) * 200;
+        }
+      }
+      const disp = new Array(N).fill(0).map(()=>({x:0,y:0}));
+      const indexById = new Map(nodeList.map((n, i)=>[n.id, i]));
+
+      function repulsiveForce(d){ return (k*k)/(d+0.0001) * 0.9; }
+      function attractiveForce(d){ return (d*d)/k * 1.1; }
+
+      for (let iter = 0; iter < iterations; iter++){
+        for (let i = 0; i < N; i++){ disp[i].x = 0; disp[i].y = 0; }
+        // Repulsion
+        for (let i = 0; i < N; i++){
+          for (let j = i+1; j < N; j++){
+            const ni = nodeList[i], nj = nodeList[j];
+            let dx = (ni.x + 0.5*boxW) - (nj.x + 0.5*boxW);
+            let dy = (ni.y + 0.5*boxH) - (nj.y + 0.5*boxH);
+            const dist = Math.hypot(dx, dy) || 0.0001;
+            const force = repulsiveForce(dist);
+            const ux = dx / dist, uy = dy / dist;
+            disp[i].x += ux * force; disp[i].y += uy * force;
+            disp[j].x -= ux * force; disp[j].y -= uy * force;
+          }
+        }
+        // Attraction along links
+        for (const [a, b] of links){
+          const ia = indexById.get(a), ib = indexById.get(b);
+          if (ia == null || ib == null) continue;
+          const na = nodeList[ia], nb = nodeList[ib];
+          let dx = (na.x + 0.5*boxW) - (nb.x + 0.5*boxW);
+          let dy = (na.y + 0.5*boxH) - (nb.y + 0.5*boxH);
+          const dist = Math.hypot(dx, dy) || 0.0001;
+          const force = attractiveForce(dist);
+          const ux = dx / dist, uy = dy / dist;
+          disp[ia].x -= ux * force; disp[ia].y -= uy * force;
+          disp[ib].x += ux * force; disp[ib].y += uy * force;
+        }
+        // Gravity to center
+        for (let i = 0; i < N; i++){
+          const n = nodeList[i];
+          const cx = n.x + 0.5*boxW, cy = n.y + 0.5*boxH;
+          const dx = cx - center.x, dy = cy - center.y;
+          disp[i].x -= dx * 0.03; disp[i].y -= dy * 0.03;
+        }
+        // Apply displacements with temperature cap
+        for (let i = 0; i < N; i++){
+          const n = nodeList[i];
+          const d = Math.hypot(disp[i].x, disp[i].y) || 0.0001;
+          const ux = disp[i].x / d, uy = disp[i].y / d;
+          n.x += ux * Math.min(d, t);
+          n.y += uy * Math.min(d, t);
+        }
+        // Simple collision resolution for rectangles
+        for (let i = 0; i < N; i++){
+          for (let j = i+1; j < N; j++){
+            const a = nodeList[i], b = nodeList[j];
+            const ax2 = a.x + boxW, ay2 = a.y + boxH;
+            const bx2 = b.x + boxW, by2 = b.y + boxH;
+            const overlapX = Math.min(ax2, bx2) - Math.max(a.x, b.x);
+            const overlapY = Math.min(ay2, by2) - Math.max(a.y, b.y);
+            if (overlapX > 0 && overlapY > 0){
+              // Push apart along the lesser overlap axis
+              if (overlapX < overlapY){
+                const push = overlapX/2 + 2;
+                if (a.x < b.x){ a.x -= push; b.x += push; } else { a.x += push; b.x -= push; }
+              } else {
+                const push = overlapY/2 + 2;
+                if (a.y < b.y){ a.y -= push; b.y += push; } else { a.y += push; b.y -= push; }
+              }
+            }
+          }
+        }
+        t -= cooling;
+        if (t < 0.01) break;
+      }
+    }
+
+    function fitSvgToContent(nodeList){
+      if (!nodeList.length) return;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const n of nodeList){
+        if (n.x < minX) minX = n.x;
+        if (n.y < minY) minY = n.y;
+        if (n.x + boxW > maxX) maxX = n.x + boxW;
+        if (n.y + boxH > maxY) maxY = n.y + boxH;
+      }
+      const padTop = 40 + margin; // leave room for header area inside view
+      const pad = margin;
+      // shift nodes so they start at padding
+      const dx = (minX === Infinity ? 0 : (pad - minX));
+      const dy = (minY === Infinity ? 0 : (padTop - minY));
+      if (dx !== 0 || dy !== 0){
+        for (const n of nodeList){ n.x += dx; n.y += dy; }
+        minX += dx; maxX += dx; minY += dy; maxY += dy;
+      }
+      const width = Math.max(600, (maxX - minX) + pad + margin);
+      const height = Math.max(400, (maxY - minY) + pad + margin);
+      svg.setAttribute('viewBox', `0 0 ${Math.ceil(width)} ${Math.ceil(height)}`);
+    }
+
+    // Automatic layout if some nodes have no saved position
+    if (savedCount < nodes.length) {
+      autoLayout(nodes, layoutLinks);
+    }
+
+    // After positions are set, compute bounds and update viewBox to ensure visibility
+    fitSvgToContent(nodes);
 
     // Edges: prefer canonical associations (single edge per association with multiplicities)
     const edges = [];
