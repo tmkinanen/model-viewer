@@ -4,6 +4,15 @@ A minimal web app to visualize a DSharp‑like UML project structure. It shows m
 
 Classes are colored by Peter Coad’s Object Modeling in Color archetypes: Party/Place/Thing (green), Role (yellow), Description (blue), Moment-Interval (pink). When loading a DSharp _Content export, the viewer reads Class details (…_CLASS_DETAILS.json) and uses the explicit Archetype there; it falls back to a name-based heuristic only if metadata is missing. Visiting classes keep a dashed border but retain their archetype color.
 
+Visiting class logic (DSharp _Content): when associations (with multiplicities) are available, a diagram only shows a visiting class for a visible local class if the local class “holds the foreign key” to a single opposite instance.
+
+Foreign key direction rule:
+- The FK is on side A when the multiplicity at the opposite end (B) is 1 or 0..1. In other words, each A points to at most one B, so A carries a (nullable) FK to B. Example: a 0..1 — 1 association means the 0..1 side holds the FK to the 1 side.
+- Many-to-many (e.g., * — *) is omitted by default (noise) unless explicitly placed.
+- One-to-one (1 — 1 or 0..1 — 0..1) is omitted by default unless explicitly placed.
+
+Practically: we include the opposite end only when the opposite end’s multiplicity is 1/0..1 relative to the local class. Many-to-many and one-to-one associations are omitted by default (unless the visiting class is explicitly placed on the diagram).
+
 ## Run locally
 
 Prerequisites:

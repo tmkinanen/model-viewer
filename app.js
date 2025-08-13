@@ -24,6 +24,8 @@
   let rootPath = '';
   // Session-scoped saved layouts: modelPath -> { classId -> {x,y} }
   const layouts = new Map();
+  // Expanded tree nodes (paths); start empty so nodes are collapsed initially
+  const expanded = new Set();
 
   folderInput.addEventListener('change', async (e) => {
     const files = [...e.target.files];
@@ -361,16 +363,49 @@
     const buildInto = (path, container)=>{
       const m = project.modelsByPath[path];
       if(!m) return;
-      const el = document.createElement('div');
-      el.className='tree-node';
-      el.dataset.path=path;
-      el.innerHTML = `${path? '📁' : '🗂️'} <span>${m.name}</span> <span class="badge">${m.classes.length}</span>`;
-      el.addEventListener('click', ()=>selectModel(path));
-      container.appendChild(el);
+      const row = document.createElement('div');
+      row.className='tree-node';
+      row.dataset.path=path;
+
       const children = (m.submodels||[]).slice().sort();
-      if(children.length){
+      const hasChildren = children.length > 0;
+
+      // Twisty for expand/collapse
+      const twisty = document.createElement('span');
+      twisty.className = 'twisty';
+      twisty.textContent = hasChildren ? (expanded.has(path) ? '▼' : '▶') : '•';
+      twisty.title = hasChildren ? (expanded.has(path) ? 'Collapse' : 'Expand') : '';
+      twisty.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        if (!hasChildren) return;
+        if (expanded.has(path)) expanded.delete(path); else expanded.add(path);
+        renderTree(project);
+      });
+
+      // Icon
+      const icon = document.createElement('span');
+      icon.textContent = path ? '📁' : '🗂️';
+
+      // Name clickable to select model
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = m.name;
+      nameSpan.addEventListener('click', ()=>selectModel(path));
+
+      // Badge
+      const badge = document.createElement('span');
+      badge.className = 'badge';
+      badge.textContent = String(m.classes.length);
+
+      row.appendChild(twisty);
+      row.appendChild(icon);
+      row.appendChild(nameSpan);
+      row.appendChild(badge);
+      container.appendChild(row);
+
+      if (hasChildren) {
         const cont = document.createElement('div');
         cont.className='tree-children';
+        cont.style.display = expanded.has(path) ? 'block' : 'none';
         container.appendChild(cont);
         for(const c of children){ buildInto(c, cont); }
       }
@@ -427,15 +462,75 @@
     }
 
     const visitingMap = new Map(); // clsId -> cls
-    for (const cls of visibleLocalClasses) {
-      for (const r of (cls.refs || [])) {
-        const target = resolveRef(r, path);
-        // visiting if target exists and its home path is NOT within descendant set
-        if (target && !descPaths.has(target.homeModelPath || '')) {
-          visitingMap.set(target.id, target);
+
+    // Helper to classify multiplicities
+    function isMany(mult){
+      if (!mult || typeof mult !== 'string') return false;
+      return mult.includes('*');
+    }
+    function isOneish(mult){
+      if (!mult || typeof mult !== 'string') return false;
+      const m = mult.trim();
+      return m === '1' || m === '1..1' || m === '0..1';
+    }
+
+    if (Array.isArray(project.associations) && project.associations.length) {
+      // Use associations with multiplicities to decide FK side
+      const localSet = new Set(visibleLocalClasses.map(c=>c.id));
+      for (const a of project.associations) {
+        // If neither end is a visible local class, ignore
+        const aSrcIsLocal = localSet.has(a.fromId);
+        const aDstIsLocal = localSet.has(a.toId);
+        if (!aSrcIsLocal && !aDstIsLocal) continue;
+
+        // If source is local, evaluate whether to include destination
+        if (aSrcIsLocal) {
+          const other = project.classesById[a.toId];
+          if (other && !descPaths.has(other.homeModelPath || '')) {
+            const oneOne = isOneish(a.fromMult) && isOneish(a.toMult);
+            if (oneOne) {
+              // 1-1 both sides: avoid adding by default (unless explicitly placed)
+            } else if (isMany(a.toMult) && isMany(a.fromMult)) {
+              // many-to-many: skip to reduce noise
+            } else if (isOneish(a.toMult)) {
+              // Include other if the multiplicity at the OTHER end is one-ish (local holds FK to a single other)
+              visitingMap.set(other.id, other);
+            } else {
+              // Otherwise, do not include
+            }
+          }
+        }
+        // If destination is local, evaluate whether to include source
+        if (aDstIsLocal) {
+          const other = project.classesById[a.fromId];
+          if (other && !descPaths.has(other.homeModelPath || '')) {
+            const oneOne = isOneish(a.fromMult) && isOneish(a.toMult);
+            if (oneOne) {
+              // 1-1 both sides: skip unless explicitly placed
+            } else if (isMany(a.fromMult) && isMany(a.toMult)) {
+              // many-to-many: skip
+            } else if (isOneish(a.fromMult)) {
+              // Include other if multiplicity at OTHER end (fromMult) is one-ish
+              visitingMap.set(other.id, other);
+            } else {
+              // no-op
+            }
+          }
+        }
+      }
+    } else {
+      // Fallback: use navigability-based refs for generic projects
+      for (const cls of visibleLocalClasses) {
+        for (const r of (cls.refs || [])) {
+          const target = resolveRef(r, path);
+          // visiting if target exists and its home path is NOT within descendant set
+          if (target && !descPaths.has(target.homeModelPath || '')) {
+            visitingMap.set(target.id, target);
+          }
         }
       }
     }
+
     // Also include any classes explicitly placed on the diagram but not local to this model tree
     if (diagramShapes && Object.keys(diagramShapes).length) {
       for (const clsId of Object.keys(diagramShapes)) {

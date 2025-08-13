@@ -39,3 +39,5 @@ aside#tree{border-right:1px solid #e5e5e5;padding:12px;overflow:auto}
 .edge{stroke:#555;stroke-width:1.5;fill:none;stroke-linejoin:round;stroke-linecap:square}
 .mult{font-size:11px;fill:#333;pointer-events:none;user-select:none}
 footer{padding:10px 16px;border-top:1px solid #eee;background:#fafafa;color:#555;font-size:13px}
+
+.twisty{display:inline-block;width:1em;text-align:center;color:#555;cursor:pointer}
