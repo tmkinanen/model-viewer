@@ -464,25 +464,64 @@
       svg.appendChild(labelSrc);
       svg.appendChild(labelDst);
     }
+    function attachmentPoint(node, otherCenter) {
+      const cx = node.x + boxW/2;
+      const cy = node.y + boxH/2;
+      const dx = otherCenter.x - cx;
+      const dy = otherCenter.y - cy;
+      const absDx = Math.abs(dx);
+      const absDy = Math.abs(dy);
+      // choose dominant axis to exit rectangle
+      if (absDx >= absDy) {
+        // horizontal attachment
+        if (dx >= 0) {
+          return { x: node.x + boxW, y: cy, side: 'right', nx: 1, ny: 0 };
+        } else {
+          return { x: node.x, y: cy, side: 'left', nx: -1, ny: 0 };
+        }
+      } else {
+        // vertical attachment
+        if (dy >= 0) {
+          return { x: cx, y: node.y + boxH, side: 'bottom', nx: 0, ny: 1 };
+        } else {
+          return { x: cx, y: node.y, side: 'top', nx: 0, ny: -1 };
+        }
+      }
+    }
+
+    function labelAnchorForSide(side){
+      if (side === 'left') return 'end';
+      if (side === 'right') return 'start';
+      return 'middle'; // top/bottom
+    }
+
     function redrawEdge(edgeObj){
       const {src, dst, fromMult, toMult} = edgeObj.e;
-      const {x:x1,y:y1} = centerRight(src, boxW, boxH);
-      const {x:x2,y:y2} = centerLeft(dst, boxW, boxH);
-      const midX = (x1 + x2)/2;
-      const d = `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`;
+      const centerSrc = { x: src.x + boxW/2, y: src.y + boxH/2 };
+      const centerDst = { x: dst.x + boxW/2, y: dst.y + boxH/2 };
+      const p1 = attachmentPoint(src, centerDst);
+      const p2 = attachmentPoint(dst, centerSrc);
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      const k = 0.3; // curvature factor
+      const c1 = { x: p1.x + dx * k, y: p1.y + dy * k };
+      const c2 = { x: p2.x - dx * k, y: p2.y - dy * k };
+      const d = `M ${p1.x} ${p1.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${p2.x} ${p2.y}`;
       edgeObj.pathEl.setAttribute('d', d);
-      // Position multiplicities slightly outside box edges
-      const off = 6;
+      // Position multiplicities slightly outside box edges along outward normal
+      const off = 8;
       if (fromMult) {
-        edgeObj.labelSrc.setAttribute('x', x1 + off);
-        edgeObj.labelSrc.setAttribute('y', y1 - 6);
+        edgeObj.labelSrc.setAttribute('x', p1.x + p1.nx * off);
+        edgeObj.labelSrc.setAttribute('y', p1.y + p1.ny * off - 2);
+        edgeObj.labelSrc.setAttribute('text-anchor', labelAnchorForSide(p1.side));
         edgeObj.labelSrc.textContent = fromMult;
       } else {
         edgeObj.labelSrc.textContent = '';
       }
       if (toMult) {
-        edgeObj.labelDst.setAttribute('x', x2 - off - 10);
-        edgeObj.labelDst.setAttribute('y', y2 - 6);
+        edgeObj.labelDst.setAttribute('x', p2.x + p2.nx * off);
+        edgeObj.labelDst.setAttribute('y', p2.y + p2.ny * off - 2);
+        edgeObj.labelDst.setAttribute('text-anchor', labelAnchorForSide(p2.side));
         edgeObj.labelDst.textContent = toMult;
       } else {
         edgeObj.labelDst.textContent = '';
