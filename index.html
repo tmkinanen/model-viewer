@@ -14,11 +14,18 @@
         Load Project Folder
         <input id="folderInput" type="file" webkitdirectory multiple />
       </label>
+      <div class="azdo-controls">
+        <input id="azOrg" placeholder="Org" />
+        <input id="azProject" placeholder="Project" />
+        <input id="azRepo" placeholder="Repository" />
+        <input id="azRef" placeholder="Branch (default: main)" />
+        <button id="azLoadBtn" class="btn">Load from DevOps</button>
+      </div>
       <button id="demoBtn" class="btn secondary">Load Demo Project</button>
     </div>
     <p class="note">
       Tip: Select your DSharp project root folder. The viewer looks for model.json files or classes/*.json per model.
-      References can be class IDs or paths like "Model/SubModel/ClassName".
+      References can be class IDs or paths like "Model/SubModel/ClassName". To load from Azure DevOps Git, set AZDO_PAT on the server and fill Org, Project, Repo, Branch.
     </p>
   </header>
 

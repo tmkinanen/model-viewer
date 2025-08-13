@@ -2,7 +2,9 @@
 body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;color:#1a1a1a}
 header{padding:12px 16px;border-bottom:1px solid #e5e5e5;background:#fafafa}
 header h1{margin:0 0 8px 0;font-size:20px}
-.controls{display:flex;gap:8px;align-items:center}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.azdo-controls{display:flex;gap:6px;align-items:center}
+.azdo-controls input{padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;min-width:120px}
 .btn{display:inline-flex;align-items:center;gap:8px;background:#2f6feb;color:#fff;padding:8px 12px;border-radius:6px;border:1px solid #2156c8;cursor:pointer;font-weight:600}
 .btn input{display:none}
 .btn.secondary{background:#f0f3f8;color:#1a3b7a;border-color:#d0d8e8}

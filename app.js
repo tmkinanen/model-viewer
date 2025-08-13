@@ -14,6 +14,11 @@
   const svg = document.getElementById('svg');
   const modelHeader = document.getElementById('modelHeader');
   const demoBtn = document.getElementById('demoBtn');
+  const azOrg = document.getElementById('azOrg');
+  const azProject = document.getElementById('azProject');
+  const azRepo = document.getElementById('azRepo');
+  const azRef = document.getElementById('azRef');
+  const azLoadBtn = document.getElementById('azLoadBtn');
 
   let project = null; // { modelsByPath, classesById, classesByFQN }
   let rootPath = '';
@@ -35,6 +40,32 @@
     selectModel(firstModel);
   });
 
+  azLoadBtn?.addEventListener('click', async () => {
+    const org = (azOrg?.value || '').trim();
+    const projectName = (azProject?.value || '').trim();
+    const repo = (azRepo?.value || '').trim();
+    const ref = (azRef?.value || '').trim();
+    if(!org || !projectName || !repo){
+      alert('Please fill Org, Project, and Repository');
+      return;
+    }
+    try{
+      const params = new URLSearchParams({ org, project: projectName, repo });
+      if(ref) params.set('ref', ref);
+      const resp = await fetch('/api/azdo/items?' + params.toString());
+      const data = await resp.json();
+      if(!resp.ok){ throw new Error(data && data.error || 'Failed to load from DevOps'); }
+      const entries = data.entries || [];
+      project = await buildProjectFromEntries(entries);
+      renderTree(project);
+      const firstModel = Object.keys(project.modelsByPath).sort()[0] || '';
+      selectModel(firstModel);
+    }catch(e){
+      console.error(e);
+      alert('Azure DevOps load failed: ' + e.message);
+    }
+  });
+
   function commonPrefix(paths){
     if (!paths.length) return '';
     const partsArr = paths.map(p=>p.split('/'));
@@ -49,10 +80,19 @@
   }
 
   async function buildProjectFromFiles(files){
-    // Normalize vfs
-    const vfs = new Map(); // path -> File
-    for(const f of files){
-      vfs.set(f.webkitRelativePath, f);
+    // Convert File objects to entries {path, text}
+    const entries = [];
+    for (const f of files) {
+      entries.push({ path: f.webkitRelativePath, text: await f.text() });
+    }
+    return buildProjectFromEntries(entries);
+  }
+
+  async function buildProjectFromEntries(entries){
+    // Normalize virtual filesystem from entries
+    const vfs = new Map(); // path -> text
+    for(const e of entries){
+      if (e && typeof e.path === 'string') vfs.set(e.path, e.text || '');
     }
     // Collect directories
     const dirs = new Set(['']);
@@ -72,11 +112,10 @@
       modelsByPath[dir] = {
         path: dir,
         name: dir.split('/').filter(Boolean).slice(-1)[0] || 'Root',
-        classes: [], // class IDs
+        classes: [],
         submodels: [],
       };
     }
-    // Link submodels
     for(const dir of dirs){
       if(!dir) continue;
       const parent = dir.split('/').slice(0,-1).join('/');
@@ -86,58 +125,42 @@
     const classesById = {};
     const classesByFQN = {};
 
-    // Read model.json and classes/*.json
-    for(const [path, file] of vfs){
-      if(path.endsWith('model.json')){
+    // model.json files
+    for(const [p, txt] of vfs){
+      if(p.endsWith('model.json')){
         try{
-          const txt = await file.text();
           const data = JSON.parse(txt);
-          const dir = path.split('/').slice(0,-1).join('/');
+          const dir = p.split('/').slice(0,-1).join('/');
           const model = modelsByPath[dir] || (modelsByPath[dir]={path:dir,name:data.name||dir.split('/').pop()||'Root',classes:[],submodels:[]});
           if(data.name) model.name = data.name;
           if(Array.isArray(data.classes)){
             for(const c of data.classes){
               const id = c.id || makeId(dir + ':' + c.name);
-              const cls = {
-                id,
-                name: c.name || id,
-                homeModelPath: dir,
-                refs: Array.isArray(c.refs)? c.refs.slice(): [],
-              };
+              const cls = { id, name: c.name || id, homeModelPath: dir, refs: Array.isArray(c.refs)? c.refs.slice(): [] };
               classesById[id]=cls;
               classesByFQN[dir + '/' + cls.name] = cls;
               model.classes.push(id);
             }
           }
-        }catch(e){ console.warn('Failed to parse', path, e); }
+        }catch(e){ console.warn('Failed to parse', p, e); }
       }
     }
-
-    // classes/*.json
-    for(const [path, file] of vfs){
-      const segs = path.split('/');
+    // classes/*.json files
+    for(const [p, txt] of vfs){
+      const segs = p.split('/');
       if(segs.length>=2 && segs[segs.length-2]==='classes' && segs[segs.length-1].endsWith('.json')){
         const dir = segs.slice(0,-2).join('/');
         try{
-          const txt = await file.text();
           const c = JSON.parse(txt);
           const id = c.id || makeId(dir + ':' + c.name);
-          const cls = {
-            id,
-            name: c.name || id,
-            homeModelPath: dir,
-            refs: Array.isArray(c.refs)? c.refs.slice(): [],
-          };
-          if(!modelsByPath[dir]){
-            modelsByPath[dir] = { path: dir, name: dir.split('/').pop()||'Root', classes: [], submodels: [] };
-          }
+          const cls = { id, name: c.name || id, homeModelPath: dir, refs: Array.isArray(c.refs)? c.refs.slice(): [] };
+          if(!modelsByPath[dir]) modelsByPath[dir] = { path: dir, name: dir.split('/').pop()||'Root', classes: [], submodels: [] };
           classesById[id]=cls;
           classesByFQN[dir + '/' + cls.name] = cls;
           modelsByPath[dir].classes.push(id);
-        }catch(e){ console.warn('Failed to parse class file', path, e); }
+        }catch(e){ console.warn('Failed to parse class file', p, e); }
       }
     }
-
     return { modelsByPath, classesById, classesByFQN };
   }
 
