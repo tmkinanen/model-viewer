@@ -773,7 +773,7 @@
       const attrs = (project.attributesByClassId && project.attributesByClassId[n.id]) || [];
       if (expSet.has(n.id) && attrs.length){
         for (const a of attrs){
-          const line = `${a.name}${a.datatype? ': '+a.datatype:''}${a.multiplicity? ' ['+a.multiplicity+']':''}`;
+          const line = `${a.name}${a.datatype? ': '+a.datatype:''}`;
           maxText = Math.max(maxText, measureTextWidth(line, 'class-label'));
         }
       }
@@ -1252,7 +1252,7 @@
         const startY = n.y + 64; // below subtitle
         list.forEach((a, i) => {
           const t = createSVG('text', { x: n.x + 12, y: startY + i*16, class: 'class-label', fill: '#222' });
-          t.textContent = `${a.name}${a.datatype? ': '+a.datatype:''}${a.multiplicity? ' ['+a.multiplicity+']':''}`;
+          t.textContent = `${a.name}${a.datatype? ': '+a.datatype:''}`;
           attrsGroup.appendChild(t);
         });
       }
