@@ -44,7 +44,6 @@ Note: After loading, no model is opened automatically. The Root level in the tre
 
 2) Load from Azure DevOps Git
 - Simplest: Paste your Repo URL, enter Username and PAT in Settings. The app parses org/project/repo from the URL and authenticates with Basic auth built from username:PAT. The PAT is stored only in your browser (localStorage) and sent per request.
-- Optional: You can still fill Org/Project/Repo directly if you prefer or if the URL parsing fails (also in Settings).
 - Fast mode: Use local clone (checkbox in Settings, on by default). The server will perform a shallow git clone to a temporary folder and read JSON files from disk. This is much faster for large repos than fetching each file via REST.
 - Fields (in Settings):
   - Repo URL: e.g., https://dev.azure.com/Org/Project/_git/Repo

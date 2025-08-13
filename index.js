@@ -18,13 +18,38 @@ const https = require('https');
 const os = require('os');
 const { exec } = require('child_process');
 
+// In-memory progress store for long-running operations
+const _progress = new Map(); // requestId -> { percent, msg, ts }
+function setProgress(id, percent, msg){
+  if (!id) return;
+  const p = Math.max(0, Math.min(100, Math.floor(percent)));
+  _progress.set(id, { percent: p, msg: msg || '', ts: Date.now() });
+}
+function getProgress(id){
+  const v = _progress.get(id);
+  if (!v) return { percent: 0, msg: '' };
+  return v;
+}
+function clearProgress(id){
+  if (!id) return; _progress.delete(id);
+}
+
 const server = http.createServer((req, res) => {
   const u = new URL(req.url, `http://${req.headers.host}`);
   const pathname = decodeURIComponent(u.pathname);
 
+  // API: Progress polling
+  if (pathname === '/api/azdo/progress') {
+    const requestId = u.searchParams.get('requestId') || u.searchParams.get('id') || '';
+    const body = { requestId, ...getProgress(requestId) };
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(body));
+    return;
+  }
+
   // API: Azure DevOps Git proxy
   if (pathname === '/api/azdo/items') {
-    const requestId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
+    const requestId = u.searchParams.get('cid') || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
     const org = u.searchParams.get('org');
     const project = u.searchParams.get('project');
     const repo = u.searchParams.get('repo'); // name or id
@@ -123,7 +148,9 @@ const server = http.createServer((req, res) => {
 
     (async () => {
       try {
-        const repoInfo = await getRepoId();
+        setProgress(requestId, 1, 'Starting…');
+        setProgress(requestId, 2, 'Resolving repository…');
+                const repoInfo = await getRepoId();
         const repoId = typeof repoInfo === 'string' ? repoInfo : repoInfo.id;
         const repoDefaultBranch = typeof repoInfo === 'object' && repoInfo && repoInfo.defaultBranch ? repoInfo.defaultBranch : null;
 
@@ -145,6 +172,7 @@ const server = http.createServer((req, res) => {
 
         // If method=git is requested, try fast local clone strategy
         if (method === 'git') {
+                  setProgress(requestId, 5, 'Reading files…');
           const t0 = Date.now();
           // Derive username and pat from auth header
           let user = 'pat';
@@ -180,6 +208,7 @@ const server = http.createServer((req, res) => {
             }
             const elapsedClone = Date.now() - t0;
             log('Clone done', { ms: elapsedClone });
+            setProgress(requestId, 55, 'Scanning repository…');
             // Walk filesystem and collect JSON files
             const entries = [];
             const rootDir = cloneDir;
@@ -192,30 +221,45 @@ const server = http.createServer((req, res) => {
               try { topList = fs.readdirSync(startDir).slice(0, 50); } catch {}
               log('Clone dir ready', { baseDir: base, cloneDir: rootDir, startDir, exists, topEntries: topList.length, sample: topList.slice(0, 10) });
             } catch {}
-            function walk(dir){
-              let list;
-              try { list = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
-              for (const ent of list) {
-                const full = path.join(dir, ent.name);
-                if (ent.isDirectory()) { walk(full); continue; }
-                if (/\.json$/i.test(ent.name)) {
-                  try {
-                    const rel = path.relative(rootDir, full).split(path.sep).join('/');
-                    const text = fs.readFileSync(full, 'utf8');
-                    entries.push({ path: rel, text });
-                  } catch {}
-                }
+            // First collect JSON file paths to compute progress
+                        const jsonPaths = [];
+                        function collect(dir){
+                          let list;
+                          try { list = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+                          for (const ent of list) {
+                            const full = path.join(dir, ent.name);
+                            if (ent.isDirectory()) { collect(full); continue; }
+                            if (/\.json$/i.test(ent.name)) {
+                              jsonPaths.push(full);
+                            }
+                          }
+                        }
+                        collect(startDir);
+                        setProgress(requestId, 60, 'Reading files…');
+                        const total = jsonPaths.length || 1;
+                        let processed = 0;
+            for (const full of jsonPaths) {
+              try {
+                const rel = path.relative(rootDir, full).split(path.sep).join('/');
+                const text = fs.readFileSync(full, 'utf8');
+                entries.push({ path: rel, text });
+              } catch {}
+              processed++;
+              if (processed % 50 === 0 || processed === total) {
+                const pct = 60 + Math.floor((processed / total) * 40);
+                setProgress(requestId, pct, 'Reading files…');
               }
             }
-            walk(startDir);
             try {
               const samplePaths = entries.slice(0, 10).map(e => e.path);
               log('Local read done', { files: entries.length, sample: samplePaths });
             } catch { log('Local read done', { files: entries.length }); }
+            setProgress(requestId, 100, 'Done');
             // Cleanup temp dir
             try { fs.rmSync(base, { recursive: true, force: true }); } catch {}
             res.writeHead(200, { 'Content-Type': 'application/json', 'X-Request-Id': requestId });
             res.end(JSON.stringify({ entries, requestId }));
+            setTimeout(() => clearProgress(requestId), 15000);
             return;
           } catch (cloneErr) {
             // Ensure cleanup and fall back to REST
@@ -241,6 +285,7 @@ const server = http.createServer((req, res) => {
           headers: { Authorization: `Basic ${auth}` }
         };
         log('GET', `https://dev.azure.com${pathList}`);
+        setProgress(requestId, 8, 'Listing repository…');
         const listJson = await requestJson(opts);
         const allItems = Array.isArray(listJson.value) ? listJson.value : [];
         // Determine files more robustly: consider gitObjectType === 'blob' OR isFolder === false (some responses omit isFolder)
@@ -266,6 +311,7 @@ const server = http.createServer((req, res) => {
           acc[t] = (acc[t] || 0) + 1; return acc;
         }, {});
         log('List counts', { total: allItems.length, files: fileItems.length, jsonCandidates: candidateItems.length, typeCounts });
+        setProgress(requestId, 12, 'Fetching files…');
 
         // 2) Fetch content for candidates concurrently
         async function fetchFileContent(itemPath) {
@@ -302,15 +348,22 @@ const server = http.createServer((req, res) => {
           const slice = candidateItems.slice(i, i + concurrency);
           const results = await Promise.all(slice.map(it => fetchFileContent(getItemPath(it))));
           for (const r of results) if (r) entries.push(r);
+          const processed = Math.min(i + concurrency, candidateItems.length);
+          const pct = 12 + Math.floor((processed / Math.max(1, candidateItems.length)) * 86); // up to ~98%
+          setProgress(requestId, pct, 'Fetching files…');
         }
         log('Fetched entries', { count: entries.length });
 
+        setProgress(requestId, 100, 'Done');
         res.writeHead(200, { 'Content-Type': 'application/json', 'X-Request-Id': requestId });
         res.end(JSON.stringify({ entries, requestId }));
+        setTimeout(() => clearProgress(requestId), 15000);
       } catch (e) {
         log('500 error', e && e.message ? e.message : e);
+        setProgress(requestId, 100, 'Error: ' + (e && e.message ? e.message : 'Failed'));
         res.writeHead(500, { 'Content-Type': 'application/json', 'X-Request-Id': requestId });
         res.end(JSON.stringify({ error: e.message || String(e), requestId }));
+        setTimeout(() => clearProgress(requestId), 15000);
       }
     })();
     return;

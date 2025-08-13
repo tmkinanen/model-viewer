@@ -79,6 +79,24 @@
   function clearLog(){ if (logEl) logEl.textContent = ''; }
   logClearBtn?.addEventListener('click', clearLog);
 
+  // Progress polling for Azure DevOps load
+  let _progressTimer = null;
+  function startProgressPoll(requestId){
+    stopProgressPoll();
+    if (!requestId) return;
+    _progressTimer = setInterval(async () => {
+      try {
+        const r = await fetch('/api/azdo/progress?requestId=' + encodeURIComponent(requestId));
+        const j = await r.json().catch(()=>null);
+        if (j && typeof j.percent === 'number') {
+          const msg = j.msg && j.msg.trim() ? j.msg.trim() : 'Loading…';
+          updateLoading(msg + ' ' + j.percent + '%');
+        }
+      } catch {}
+    }, 300);
+  }
+  function stopProgressPoll(){ if (_progressTimer) { clearInterval(_progressTimer); _progressTimer = null; } }
+
   folderInput.addEventListener('change', async (e) => {
     const files = [...e.target.files];
     if (!files.length) return;
@@ -176,6 +194,8 @@
     try{
       showLoading('Fetching from Azure DevOps…');
       const params = new URLSearchParams({ org, project: projectName, repo });
+      const cid = 'job-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,8);
+      params.set('cid', cid);
       if(ref) params.set('ref', ref);
       if (azUseGit?.checked) params.set('method', 'git');
       const headers = {};
@@ -188,6 +208,7 @@
       const requestUrl = '/api/azdo/items?' + params.toString();
       console.log('Request', { url: requestUrl, headers: Object.keys(headers) });
       uiLog('[AZDO] Request', { url: requestUrl, headers: Object.keys(headers) });
+      startProgressPoll(cid);
       const resp = await fetch(requestUrl, { headers });
       const data = await resp.json().catch(() => ({}));
       const requestId = (resp.headers && resp.headers.get && resp.headers.get('X-Request-Id')) || data.requestId || undefined;
@@ -240,6 +261,7 @@
       alert('Azure DevOps load failed: ' + (e && e.message ? e.message : String(e)) + rid);
     } finally {
       console.groupEnd?.();
+      stopProgressPoll();
       hideLoading();
     }
   });
@@ -266,7 +288,10 @@
       const text = await f.text();
       entries.push({ path: f.webkitRelativePath, text });
       i++;
-      if (i % 25 === 0) updateLoading(`Reading files… ${i}/${files.length}`);
+      if (i % 1 === 0) {
+        const pct = Math.floor((i / files.length) * 100);
+        updateLoading(`Reading files… ${pct}%`);
+      }
     }
     return buildProjectFromEntries(entries);
   }
