@@ -55,9 +55,12 @@ Notes:
   npm start
 
 ## Data format assumptions
-- Every folder is considered a model/submodel node.
-- Classes can be provided either in model.json (inline) or as individual files under classes/*.json.
-- A class belongs to the model folder it’s defined in.
+- Option A: DSharp export in a _Content folder (see data_example). The app parses Memento JSON files with TypeName="Model"/"Submodel"/"Class"/"Association".
+  - Submodels are organized by ParentId/ParentTypeName (under the Conceptual model) to build a hierarchy like Admin/Finance.
+  - Classes (TypeName="Class") belong to a Submodel (by ParentId) and associations create references between classes (From/To.ReferencedElementId).
+- Option B: Simple directory-based project where every folder is a model/submodel node.
+  - Classes can be provided either in model.json (inline) or as individual files under classes/*.json.
+- A class belongs to the model node it’s defined in, but can be referenced across models.
 - References can be by class id or by fully-qualified path like Model/Submodel/ClassName.
 
 ## Troubleshooting

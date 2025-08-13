@@ -24,7 +24,9 @@
       <button id="demoBtn" class="btn secondary">Load Demo Project</button>
     </div>
     <p class="note">
-      Tip: Select your DSharp project root folder. The viewer looks for model.json files or classes/*.json per model.
+      Tip: Select your DSharp project root folder. The viewer understands either:
+      - DSharp exports in a _Content folder (Model/Submodel/Class/Association mementos), or
+      - Simple model.json files and classes/*.json per model.
       References can be class IDs or paths like "Model/SubModel/ClassName". To load from Azure DevOps Git, set AZDO_PAT on the server and fill Org, Project, Repo, Branch.
     </p>
   </header>

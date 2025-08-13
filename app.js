@@ -94,6 +94,18 @@
     for(const e of entries){
       if (e && typeof e.path === 'string') vfs.set(e.path, e.text || '');
     }
+
+    // If this looks like a DSharp _Content export, use the specialized parser
+    const hasContentFolder = [...vfs.keys()].some(p => /\/_Content\//.test(p));
+    if (hasContentFolder) {
+      try {
+        return buildFromDSharpContent(vfs);
+      } catch (err) {
+        console.warn('Falling back to generic parser due to _Content parse error:', err);
+        // continue to generic folder-based parsing
+      }
+    }
+
     // Collect directories
     const dirs = new Set(['']);
     for(const p of vfs.keys()){
@@ -161,6 +173,119 @@
         }catch(e){ console.warn('Failed to parse class file', p, e); }
       }
     }
+    return { modelsByPath, classesById, classesByFQN };
+  }
+
+  function buildFromDSharpContent(vfs){
+    // vfs: Map<string path, string json>
+    // Consider only files under _Content/*.json
+    const contentEntries = [...vfs.entries()].filter(([p]) => /\/_Content\//.test(p) && p.endsWith('.json'));
+    const elements = new Map(); // id -> obj
+    for (const [p, txt] of contentEntries) {
+      try {
+        const obj = JSON.parse(txt);
+        if (obj && obj.Id) {
+          elements.set(obj.Id, obj);
+        }
+      } catch (e) {
+        // ignore invalid json
+      }
+    }
+
+    // Collect models and submodels
+    const nodeById = new Map();
+    for (const obj of elements.values()) {
+      if (obj.TypeName === 'Model' || obj.TypeName === 'Submodel' || obj.TypeName === 'Conceptual model') {
+        nodeById.set(obj.Id, { id: obj.Id, name: obj.Name || obj.Id, type: obj.TypeName, parentId: obj.ParentId || null });
+      }
+    }
+
+    // Compute paths for all Submodels under Conceptual model (and nested)
+    const pathByNodeId = new Map();
+
+    function buildPath(nodeId){
+      if (pathByNodeId.has(nodeId)) return pathByNodeId.get(nodeId);
+      const node = nodeById.get(nodeId);
+      if (!node) return null;
+      // Stop at conceptual model or project
+      if (node.type === 'Conceptual model' || node.parentId === 'SYSTEM_PROJECT' || node.parentId === null) {
+        const p = node.type === 'Submodel' || node.type === 'Model' ? node.name : '';
+        pathByNodeId.set(nodeId, p);
+        return p;
+      }
+      const parent = nodeById.get(node.parentId);
+      const parentPath = parent ? buildPath(parent.id) : '';
+      const p = parentPath ? (node.name ? parentPath + '/' + node.name : parentPath) : (node.name || '');
+      pathByNodeId.set(nodeId, p);
+      return p;
+    }
+
+    // Prepare modelsByPath structure using only Submodels (models hold multiple submodels, but we visualize submodels tree)
+    const modelsByPath = {};
+    // include a root
+    modelsByPath[''] = { path: '', name: 'Root', classes: [], submodels: [] };
+
+    // First pass: create model entries for each submodel
+    for (const n of nodeById.values()) {
+      if (n.type !== 'Submodel') continue;
+      const path = buildPath(n.id);
+      if (path == null || path === '') continue;
+      if (!modelsByPath[path]) {
+        modelsByPath[path] = { path, name: path.split('/').pop(), classes: [], submodels: [] };
+      }
+    }
+    // Build parent-child links by path
+    for (const mPath in modelsByPath) {
+      if (!mPath) continue;
+      const parentPath = mPath.split('/').slice(0, -1).join('/');
+      const p = parentPath; // may be '' for top-level
+      if (!modelsByPath[p]) {
+        modelsByPath[p] = { path: p, name: p ? p.split('/').pop() : 'Root', classes: [], submodels: [] };
+      }
+      modelsByPath[p].submodels.push(mPath);
+    }
+
+    const classesById = {};
+    const classesByFQN = {};
+
+    // Gather classes and attach to their submodel path
+    for (const obj of elements.values()) {
+      if (obj.TypeName === 'Class' && obj.ParentTypeName === 'Submodel') {
+        const modelPath = buildPath(obj.ParentId);
+        const id = obj.Id;
+        const name = obj.Name || id;
+        const cls = { id, name, homeModelPath: modelPath || '', refs: [] };
+        classesById[id] = cls;
+        if (modelPath) classesByFQN[modelPath + '/' + name] = cls;
+        // ensure the model exists
+        if (!modelsByPath[modelPath]) {
+          modelsByPath[modelPath] = { path: modelPath, name: modelPath.split('/').pop() || 'Root', classes: [], submodels: [] };
+        }
+        modelsByPath[modelPath].classes.push(id);
+      }
+    }
+
+    // Build references from Associations
+    for (const obj of elements.values()) {
+      if (obj.TypeName === 'Association' && obj.From && obj.To) {
+        const fromId = obj.From.ReferencedElementId;
+        const toId = obj.To.ReferencedElementId;
+        const fromNav = obj.From.IsNavigable !== false; // default true
+        const toNav = obj.To.IsNavigable !== false;
+        if (fromNav && classesById[fromId] && classesById[toId]) {
+          classesById[fromId].refs.push(toId);
+        }
+        if (toNav && classesById[toId] && classesById[fromId]) {
+          classesById[toId].refs.push(fromId);
+        }
+      }
+    }
+
+    // Sort submodels for consistency
+    for (const k in modelsByPath) {
+      modelsByPath[k].submodels = (modelsByPath[k].submodels || []).sort();
+    }
+
     return { modelsByPath, classesById, classesByFQN };
   }
 
