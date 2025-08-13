@@ -47,6 +47,42 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // API: Demo project loader (reads from local data_example/DemoDW - Tutorial 10)
+  if (pathname === '/api/demo') {
+    try {
+      const demoDir = path.join(root, 'data_example', 'DemoDW - Tutorial 10');
+      if (!fs.existsSync(demoDir)) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Demo directory not found', path: demoDir }));
+        return;
+      }
+      // Recursively collect JSON files
+      const entries = [];
+      function walk(dir){
+        let list;
+        try { list = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+        for (const ent of list) {
+          const full = path.join(dir, ent.name);
+          if (ent.isDirectory()) { walk(full); continue; }
+          if (/\.json$/i.test(ent.name)) {
+            try {
+              const rel = path.relative(demoDir, full).split(path.sep).join('/');
+              const text = fs.readFileSync(full, 'utf8');
+              entries.push({ path: rel, text });
+            } catch {}
+          }
+        }
+      }
+      walk(demoDir);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ entries }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message || String(e) }));
+    }
+    return;
+  }
+
   // API: Azure DevOps Git proxy
   if (pathname === '/api/azdo/items') {
     const requestId = u.searchParams.get('cid') || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
@@ -173,6 +209,13 @@ const server = http.createServer((req, res) => {
         // If method=git is requested, try fast local clone strategy
         if (method === 'git') {
                   setProgress(requestId, 5, 'Reading files…');
+          // During clone, advance progress slowly from 5% to 50% so the user sees activity
+          let tickPct = 5;
+          const cloneTicker = setInterval(() => {
+            tickPct = Math.min(50, tickPct + 1);
+            setProgress(requestId, tickPct, 'Reading files…');
+            if (tickPct >= 50) { try { clearInterval(cloneTicker); } catch {} }
+          }, 500);
           const t0 = Date.now();
           // Derive username and pat from auth header
           let user = 'pat';
@@ -208,7 +251,8 @@ const server = http.createServer((req, res) => {
             }
             const elapsedClone = Date.now() - t0;
             log('Clone done', { ms: elapsedClone });
-            setProgress(requestId, 55, 'Scanning repository…');
+            try { clearInterval(cloneTicker); } catch {}
+            setProgress(requestId, Math.max(55, tickPct), 'Scanning repository…');
             // Walk filesystem and collect JSON files
             const entries = [];
             const rootDir = cloneDir;
@@ -245,7 +289,7 @@ const server = http.createServer((req, res) => {
                 entries.push({ path: rel, text });
               } catch {}
               processed++;
-              if (processed % 50 === 0 || processed === total) {
+              if (processed % 10 === 0 || processed === total) {
                 const pct = 60 + Math.floor((processed / total) * 40);
                 setProgress(requestId, pct, 'Reading files…');
               }
@@ -263,6 +307,7 @@ const server = http.createServer((req, res) => {
             return;
           } catch (cloneErr) {
             // Ensure cleanup and fall back to REST
+            try { clearInterval(cloneTicker); } catch {}
             log('Clone failed, falling back to REST', { error: cloneErr.message });
             try { fs.rmSync(base, { recursive: true, force: true }); } catch {}
             // proceed to REST below
