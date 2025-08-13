@@ -4,9 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="a06c9853-30fa-4a1f-841c-450c5e55864b" name="Changes" comment="Git support">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+    <list default="true" id="a06c9853-30fa-4a1f-841c-450c5e55864b" name="Changes" comment="Moving classes">
       <change beforePath="$PROJECT_DIR$/app.js" beforeDir="false" afterPath="$PROJECT_DIR$/app.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/styles.css" afterDir="false" />
     </list>
@@ -61,7 +59,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1755067784530</updated>
-      <workItem from="1755067785550" duration="5286000" />
+      <workItem from="1755067785550" duration="5623000" />
     </task>
     <task id="LOCAL-00001" summary="Init">
       <option name="closed" value="true" />
@@ -103,7 +101,23 @@
       <option name="project" value="LOCAL" />
       <updated>1755080438245</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="Moving classes">
+      <option name="closed" value="true" />
+      <created>1755081204070</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1755081204070</updated>
+    </task>
+    <task id="LOCAL-00007" summary="Moving classes">
+      <option name="closed" value="true" />
+      <created>1755081398739</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1755081398739</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -113,6 +127,7 @@
     <MESSAGE value="Init" />
     <MESSAGE value="Demo ready" />
     <MESSAGE value="Git support" />
-    <option name="LAST_COMMIT_MESSAGE" value="Git support" />
+    <MESSAGE value="Moving classes" />
+    <option name="LAST_COMMIT_MESSAGE" value="Moving classes" />
   </component>
 </project>

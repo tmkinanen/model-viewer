@@ -501,12 +501,21 @@
       const centerDst = { x: dst.x + boxW/2, y: dst.y + boxH/2 };
       const p1 = attachmentPoint(src, centerDst);
       const p2 = attachmentPoint(dst, centerSrc);
-      const dx = p2.x - p1.x;
-      const dy = p2.y - p1.y;
-      const k = 0.3; // curvature factor
-      const c1 = { x: p1.x + dx * k, y: p1.y + dy * k };
-      const c2 = { x: p2.x - dx * k, y: p2.y - dy * k };
-      const d = `M ${p1.x} ${p1.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${p2.x} ${p2.y}`;
+      // Build rectilinear (orthogonal) path with a single bend
+      let points = [];
+      points.push({ x: p1.x, y: p1.y });
+      if (p1.x === p2.x || p1.y === p2.y) {
+        // Aligned horizontally or vertically: straight segment
+        // no intermediate bend needed
+      } else if (p1.side === 'left' || p1.side === 'right') {
+        // Move horizontally first, then vertically
+        points.push({ x: p2.x, y: p1.y });
+      } else {
+        // From top or bottom: move vertically first, then horizontally
+        points.push({ x: p1.x, y: p2.y });
+      }
+      points.push({ x: p2.x, y: p2.y });
+      const d = points.map((pt, idx) => (idx === 0 ? `M ${pt.x} ${pt.y}` : `L ${pt.x} ${pt.y}`)).join(' ');
       edgeObj.pathEl.setAttribute('d', d);
       // Position multiplicities slightly outside box edges along outward normal
       const off = 8;

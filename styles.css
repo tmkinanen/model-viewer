@@ -26,6 +26,6 @@ aside#tree{border-right:1px solid #e5e5e5;padding:12px;overflow:auto}
 .class-box{fill:#e3f2fd;stroke:#1976d2;stroke-width:2;cursor:move}
 .class-box.visiting{fill:#fff;stroke:#999;stroke-dasharray:6 4}
 .class-label{font-size:12px;fill:#0d47a1}
-.edge{stroke:#555;stroke-width:1.5;fill:none;}
+.edge{stroke:#555;stroke-width:1.5;fill:none;stroke-linejoin:round;stroke-linecap:square}
 .mult{font-size:11px;fill:#333;pointer-events:none;user-select:none}
 footer{padding:10px 16px;border-top:1px solid #eee;background:#fafafa;color:#555;font-size:13px}
