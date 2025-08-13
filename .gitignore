@@ -1,0 +1,30 @@
+# Node / package managers
+node_modules/
+.npm/
+.pnpm-store/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml
+
+# Build / cache
+/dist/
+/build/
+/.cache/
+/.parcel-cache/
+
+# Environment files
+.env
+.env.*
+
+# Local data examples (ignored from VCS)
+data_example/
