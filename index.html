@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DSharp Model Viewer</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>DSharp Model Viewer</h1>
+    <div class="controls">
+      <label class="btn">
+        Load Project Folder
+        <input id="folderInput" type="file" webkitdirectory multiple />
+      </label>
+      <button id="demoBtn" class="btn secondary">Load Demo Project</button>
+    </div>
+    <p class="note">
+      Tip: Select your DSharp project root folder. The viewer looks for model.json files or classes/*.json per model.
+      References can be class IDs or paths like "Model/SubModel/ClassName".
+    </p>
+  </header>
+
+  <main>
+    <aside id="tree"></aside>
+    <section id="diagram">
+      <div id="modelHeader"></div>
+      <svg id="svg" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid meet"></svg>
+    </section>
+  </main>
+
+  <footer>
+    <span>Assumptions: Each model is a directory; optional model.json with {name, classes, submodels}. Classes may also be in classes/*.json. A class belongs to one model but may be referenced elsewhere; such visiting classes are shown with dashed borders.</span>
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>
