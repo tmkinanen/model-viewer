@@ -14,13 +14,19 @@
   const svg = document.getElementById('svg');
   const modelHeader = document.getElementById('modelHeader');
   const demoBtn = document.getElementById('demoBtn');
+  const azUrl = document.getElementById('azUrl');
+  const azUser = document.getElementById('azUser');
   const azOrg = document.getElementById('azOrg');
   const azProject = document.getElementById('azProject');
   const azRepo = document.getElementById('azRepo');
   const azRef = document.getElementById('azRef');
+  const azPat = document.getElementById('azPat');
+  const azUseGit = document.getElementById('azUseGit');
   const azLoadBtn = document.getElementById('azLoadBtn');
   const loadingEl = document.getElementById('loading');
   const loadingMsgEl = loadingEl?.querySelector('.msg');
+  const logEl = document.getElementById('log');
+  const logClearBtn = document.getElementById('logClearBtn');
 
   let project = null; // { modelsByPath, classesById, classesByFQN }
   let rootPath = '';
@@ -35,6 +41,32 @@
   // Per-model expanded attributes state: modelPath -> Set<classId>
   const expandedAttrs = new Map();
 
+  // Prefill saved creds if available (stored only in this browser)
+  try { if (azPat) azPat.value = localStorage.getItem('azdo_pat') || ''; } catch {}
+  try { if (azUser) azUser.value = localStorage.getItem('azdo_user') || ''; } catch {}
+
+  // Simple UI logger (privacy-safe)
+  function uiLog(message, data){
+    if (!logEl) return;
+    const ts = new Date().toISOString();
+    let line = `[${ts}] ${message}`;
+    if (data && typeof data === 'object'){
+      try {
+        const safe = JSON.stringify(data, (k, v) => {
+          if (k.toLowerCase().includes('pat')) return typeof v === 'string' ? `*** (${v.length})` : v;
+          if (k.toLowerCase().includes('token')) return '***';
+          return v;
+        });
+        line += ' ' + safe;
+      } catch {}
+    }
+    logEl.textContent += (line + '\n');
+    // auto-scroll
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  function clearLog(){ if (logEl) logEl.textContent = ''; }
+  logClearBtn?.addEventListener('click', clearLog);
+
   folderInput.addEventListener('change', async (e) => {
     const files = [...e.target.files];
     if (!files.length) return;
@@ -43,8 +75,12 @@
       rootPath = commonPrefix(files.map(f => f.webkitRelativePath));
       project = await buildProjectFromFiles(files);
       updateLoading('Rendering…');
+      // Expand root level and start with no model opened
+      expanded.clear();
+      try { const rootModel = findRootModelPath(project.modelsByPath); expanded.add(rootModel); } catch {}
       renderTree(project);
-      selectModel(rootPath);
+      modelHeader.textContent = 'Select a model from the tree…';
+      svg.innerHTML = '';
     } finally {
       hideLoading();
     }
@@ -55,41 +91,149 @@
       showLoading('Loading demo…');
       project = buildDemoProject();
       rootPath = '';
+      // Expand root level and start with no model opened
+      expanded.clear();
+      try { const rootModel = findRootModelPath(project.modelsByPath); expanded.add(rootModel); } catch {}
       renderTree(project);
-      const firstModel = Object.keys(project.modelsByPath).sort()[0] || '';
-      selectModel(firstModel);
+      modelHeader.textContent = 'Select a model from the tree…';
+      svg.innerHTML = '';
     } finally {
       hideLoading();
     }
   });
 
   azLoadBtn?.addEventListener('click', async () => {
-    const org = (azOrg?.value || '').trim();
-    const projectName = (azProject?.value || '').trim();
-    const repo = (azRepo?.value || '').trim();
+    const url = (azUrl?.value || '').trim();
+    const username = (azUser?.value || localStorage.getItem('azdo_user') || '').trim();
     const ref = (azRef?.value || '').trim();
+    const pat = (azPat?.value || localStorage.getItem('azdo_pat') || '').trim();
+
+    function parseAzdoRepoUrl(inUrl){
+      try{
+        const u = new URL(inUrl);
+        // Support dev.azure.com URLs
+        const host = (u.hostname || '').toLowerCase();
+        const parts = u.pathname.split('/').filter(Boolean);
+        // Expect .../{org}/{project}/_git/{repo}
+        const gitIdx = parts.findIndex(p => p.toLowerCase() === '_git');
+        if (host.endsWith('dev.azure.com') && gitIdx >= 0 && gitIdx + 1 < parts.length){
+          const org = parts[0];
+          const project = parts[1];
+          let repo = parts[gitIdx+1] || '';
+          repo = repo.replace(/\.git$/i, '');
+          return { org, project, repo };
+        }
+        // Visual Studio legacy: https://{org}.visualstudio.com/{project}/_git/{repo}
+        const m = host.match(/^([^.]+)\.visualstudio\.com$/);
+        if (m && gitIdx >= 0 && gitIdx + 1 < parts.length){
+          const org = m[1];
+          const project = parts[0];
+          let repo = parts[gitIdx+1] || '';
+          repo = repo.replace(/\.git$/i, '');
+          return { org, project, repo };
+        }
+      }catch(e){ /* ignore */ }
+      return null;
+    }
+
+    let org = (azOrg?.value || '').trim();
+    let projectName = (azProject?.value || '').trim();
+    let repo = (azRepo?.value || '').trim();
+
+    if (url){
+      const parsed = parseAzdoRepoUrl(url);
+      if (!parsed){
+        alert('Could not parse Azure DevOps repo URL. Expected format: https://dev.azure.com/{Org}/{Project}/_git/{Repo}');
+        return;
+      }
+      org = parsed.org; projectName = parsed.project; repo = parsed.repo;
+    }
+
     if(!org || !projectName || !repo){
-      alert('Please fill Org, Project, and Repository');
+      alert('Please provide a valid Repo URL or fill Org, Project, and Repository');
       return;
     }
+    if(!pat){
+      alert('Missing PAT. Enter Username and PAT (stored locally) and try again.');
+      return;
+    }
+
+    const debug = {
+      url,
+      parsed: { org, project: projectName, repo },
+      ref: ref || '(default main)',
+      authType: username && pat ? 'X-AZDO-Auth (Basic username:PAT)' : 'X-AZDO-PAT',
+      hasUsername: !!username,
+      patLength: pat ? pat.length : 0
+    };
+    console.groupCollapsed('[AZDO] Load debug');
+    console.log('Inputs', debug);
+    uiLog('[AZDO] Inputs', debug);
+
     try{
       showLoading('Fetching from Azure DevOps…');
       const params = new URLSearchParams({ org, project: projectName, repo });
       if(ref) params.set('ref', ref);
-      const resp = await fetch('/api/azdo/items?' + params.toString());
-      const data = await resp.json();
-      if(!resp.ok){ throw new Error(data && data.error || 'Failed to load from DevOps'); }
+      if (azUseGit?.checked) params.set('method', 'git');
+      const headers = {};
+      if (username && pat) {
+        const token = btoa(`${username}:${pat}`);
+        headers['X-AZDO-Auth'] = 'Basic ' + token;
+      } else if (pat) {
+        headers['X-AZDO-PAT'] = pat;
+      }
+      const requestUrl = '/api/azdo/items?' + params.toString();
+      console.log('Request', { url: requestUrl, headers: Object.keys(headers) });
+      uiLog('[AZDO] Request', { url: requestUrl, headers: Object.keys(headers) });
+      const resp = await fetch(requestUrl, { headers });
+      const data = await resp.json().catch(() => ({}));
+      const requestId = (resp.headers && resp.headers.get && resp.headers.get('X-Request-Id')) || data.requestId || undefined;
+      if(!resp.ok){
+        const err = (data && data.error) || 'Failed to load from DevOps';
+        console.error('Response error', { status: resp.status, error: err, requestId, details: data && data.details });
+        uiLog('[AZDO] Error', { status: resp.status, error: err, requestId, details: data && data.details });
+        if (/Server missing AZDO_PAT environment variable/i.test(err)) {
+          const ex = new Error('Server is running an outdated build that expects a server-side AZDO_PAT. Please restart/deploy the current server (no server PAT required) and try again, or temporarily set AZDO_PAT on the server as a workaround. Then retry with your Username and PAT.');
+          ex.requestId = requestId;
+          throw ex;
+        }
+        if (/Missing Azure DevOps PAT|Missing Azure DevOps credentials/i.test(err)) {
+          const ex = new Error('Missing PAT. Enter Username and PAT (stored locally) and try again.');
+          ex.requestId = requestId;
+          throw ex;
+        }
+        const ex = new Error(err);
+        ex.requestId = requestId;
+        throw ex;
+      }
       const entries = data.entries || [];
+      console.log('Success', { files: entries.length, requestId });
+      uiLog('[AZDO] Success', { files: entries.length, requestId });
+      if (!entries.length) {
+        const msg = 'No JSON files were returned from the repository. Check that the branch exists and contains model files (e.g., model.json, classes/*.json, or _Content/*.json). You can try specifying a different Branch and retry.';
+        const ex = new Error(msg);
+        ex.requestId = requestId;
+        throw ex;
+      }
+      // Store creds locally on success (optional; can be cleared by user via browser tools)
+      if(pat) try { localStorage.setItem('azdo_pat', pat); } catch {}
+      if(username) try { localStorage.setItem('azdo_user', username); } catch {}
       updateLoading('Parsing project…');
       project = await buildProjectFromEntries(entries);
       updateLoading('Rendering…');
+      // Expand root level and start with no model opened
+      expanded.clear();
+      try { const rootModel = findRootModelPath(project.modelsByPath); expanded.add(rootModel); } catch {}
       renderTree(project);
-      const firstModel = Object.keys(project.modelsByPath).sort()[0] || '';
-      selectModel(firstModel);
+      modelHeader.textContent = 'Select a model from the tree…';
+      svg.innerHTML = '';
     }catch(e){
-      console.error(e);
-      alert('Azure DevOps load failed: ' + e.message);
+      console.error('AZDO load failed', { message: e && e.message, requestId: e && e.requestId });
+      uiLog('[AZDO] Load failed', { message: e && e.message, requestId: e && e.requestId });
+      const rid = e && e.requestId ? ` (requestId: ${e.requestId})` : '';
+      alert('Azure DevOps load failed: ' + (e && e.message ? e.message : String(e)) + rid);
     } finally {
+      console.groupEnd?.();
       hideLoading();
     }
   });
@@ -121,6 +265,21 @@
     return buildProjectFromEntries(entries);
   }
 
+  function stripBOM(s){
+    if (typeof s !== 'string') return s;
+    // Remove UTF-8 BOM and other zero-width no-breaks at start
+    return s.replace(/^\uFEFF/, '');
+  }
+  function safeParseJson(txt, filePath){
+    const cleaned = stripBOM(String(txt));
+    try {
+      return JSON.parse(cleaned);
+    } catch (err) {
+      const msg = `Invalid JSON${filePath? ' in '+filePath : ''}: ${err.message}`;
+      throw new Error(msg);
+    }
+  }
+
   async function buildProjectFromEntries(entries){
     // Normalize virtual filesystem from entries
     updateLoading('Preparing files…');
@@ -130,7 +289,7 @@
     }
 
     // If this looks like a DSharp _Content export, use the specialized parser
-    const hasContentFolder = [...vfs.keys()].some(p => /\/_Content\//.test(p));
+    const hasContentFolder = [...vfs.keys()].some(p => /(^|\/)\_?Content\//.test(p));
     if (hasContentFolder) {
       try {
         return buildFromDSharpContent(vfs);
@@ -175,7 +334,7 @@
     for(const [p, txt] of vfs){
       if(p.endsWith('model.json')){
         try{
-          const data = JSON.parse(txt);
+          const data = safeParseJson(txt, p);
           const dir = p.split('/').slice(0,-1).join('/');
           const model = modelsByPath[dir] || (modelsByPath[dir]={path:dir,name:data.name||dir.split('/').pop()||'Root',classes:[],submodels:[]});
           if(data.name) model.name = data.name;
@@ -197,7 +356,7 @@
       if(segs.length>=2 && segs[segs.length-2]==='classes' && segs[segs.length-1].endsWith('.json')){
         const dir = segs.slice(0,-2).join('/');
         try{
-          const c = JSON.parse(txt);
+          const c = safeParseJson(txt, p);
           const id = c.id || makeId(dir + ':' + c.name);
           const cls = { id, name: c.name || id, homeModelPath: dir, refs: Array.isArray(c.refs)? c.refs.slice(): [] };
           if(!modelsByPath[dir]) modelsByPath[dir] = { path: dir, name: dir.split('/').pop()||'Root', classes: [], submodels: [] };
@@ -213,11 +372,11 @@
   function buildFromDSharpContent(vfs){
     // vfs: Map<string path, string json>
     // Consider only files under _Content/*.json
-    const contentEntries = [...vfs.entries()].filter(([p]) => /\/_Content\//.test(p) && p.endsWith('.json'));
+    const contentEntries = [...vfs.entries()].filter(([p]) => /(^|\/)\_?Content\//.test(p) && p.endsWith('.json'));
     const elements = new Map(); // id -> obj
     for (const [p, txt] of contentEntries) {
       try {
-        const obj = JSON.parse(txt);
+        const obj = safeParseJson(txt, p);
         if (obj && obj.Id) {
           elements.set(obj.Id, obj);
         }
@@ -1141,32 +1300,44 @@
         groups.get(k1).push(idx);
         groups.get(k2).push(idx);
       });
-      // Apply perpendicular offsets within each group
-      const spacing = 6;
-      for (const arr of groups.values()) {
+      // Distribute attachments along each side so they don't overlap
+      for (const [key, arr] of groups.entries()) {
         const n = arr.length;
         if (n <= 1) continue;
-        // distribute indices around 0
-        const mid = (n - 1) / 2;
-        arr.sort((a, b) => a - b); // stable
+        // key structure: kind|nodeId|side
+        const parts = key.split('|');
+        const kind = parts[0];
+        const nodeId = parts[1];
+        const side = parts[2];
+        // Determine the node and its bounds from the first item in this group
+        const firstItem = att[arr[0]];
+        const node = kind === 'src' ? firstItem.eo.e.src : firstItem.eo.e.dst;
+        const h = node.h || boxH;
+        const w = node.w || boxW;
+        const minPad = 12; // keep anchors away from rounded corners and labels
+        let minPos, maxPos, axis;
+        if (side === 'left' || side === 'right') {
+          axis = 'y';
+          minPos = node.y + minPad;
+          maxPos = node.y + h - minPad;
+        } else {
+          axis = 'x';
+          minPos = node.x + minPad;
+          maxPos = node.x + w - minPad;
+        }
+        const span = Math.max(0, maxPos - minPos);
+        // Stable order
+        arr.sort((a, b) => a - b);
         arr.forEach((idx, i) => {
-          const delta = (i - mid) * spacing;
           const item = att[idx];
-          // offset p1 perpendicular to its normal
-          if (item && item.p1) {
-            if (item.p1.side === 'left' || item.p1.side === 'right') {
-              item.p1 = { ...item.p1, y: item.p1.y + delta };
-            } else {
-              item.p1 = { ...item.p1, x: item.p1.x + delta };
-            }
-          }
-          // offset p2 perpendicular to its normal
-          if (item && item.p2) {
-            if (item.p2.side === 'left' || item.p2.side === 'right') {
-              item.p2 = { ...item.p2, y: item.p2.y + delta };
-            } else {
-              item.p2 = { ...item.p2, x: item.p2.x + delta };
-            }
+          const t = n > 1 ? (i + 1) / (n + 1) : 0.5; // even spacing; single stays centered
+          const pos = minPos + t * span;
+          if (kind === 'src') {
+            if (axis === 'y') item.p1 = { ...item.p1, y: pos };
+            else item.p1 = { ...item.p1, x: pos };
+          } else {
+            if (axis === 'y') item.p2 = { ...item.p2, y: pos };
+            else item.p2 = { ...item.p2, x: pos };
           }
         });
       }

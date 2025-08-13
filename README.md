@@ -34,6 +34,8 @@ Steps:
 
 You have two options:
 
+Note: After loading, no model is opened automatically. The Root level in the tree is expanded so you can see the first level of models; click a model to open its diagram.
+
 1) Load from local folder
 - Click “Load Project Folder” and select your project root (requires a Chromium-based browser that supports `webkitdirectory`).
 - The viewer looks for:
@@ -41,30 +43,50 @@ You have two options:
   - or JSON class files under classes/*.json with { id, name, refs }
 
 2) Load from Azure DevOps Git
-- Set an environment variable AZDO_PAT on the server process with a Personal Access Token that has Code (Read) permission.
-- Restart the server if needed.
-- In the header, fill:
-  - Org: your Azure DevOps organization (e.g., myorg)
-  - Project: your project name (e.g., MyProject)
-  - Repository: repo name (or GUID id)
+- Simplest: Paste your Repo URL, enter Username and PAT. The app parses org/project/repo from the URL and authenticates with Basic auth built from username:PAT. The PAT is stored only in your browser (localStorage) and sent per request.
+- Optional: You can still fill Org/Project/Repo directly if you prefer or if the URL parsing fails.
+- Fast mode: Use local clone (checkbox on by default). The server will perform a shallow git clone to a temporary folder and read JSON files from disk. This is much faster for large repos than fetching each file via REST.
+- Fields:
+  - Repo URL: e.g., https://dev.azure.com/Org/Project/_git/Repo
+  - Username: your Azure DevOps username (any non-empty value works; it’s combined with the PAT)
+  - PAT: your Azure DevOps PAT (scope: Code Read)
   - Branch (optional): defaults to main; you can also use refs/heads/branchName.
-- Click “Load from DevOps”. The server calls Azure DevOps REST API and returns repository files to the frontend for parsing.
+  - Use local clone (faster): enabled by default. Requires git on the server PATH.
+- Click “Load from DevOps”. The server loads files either via a fast local clone or via the Azure DevOps REST API (fallback).
 
 Notes:
-- Credentials are never sent to the browser; the server makes the API call using AZDO_PAT.
-- Endpoint used: GET /api/azdo/items?org=...&project=...&repo=...&ref=... (server-side only)
+- Credentials are user-specific and provided in the browser; the server proxies the request using your per-request PAT and does not store it.
+- Fast mode (local clone) requires git installed on the server PATH. The server clones to a temporary directory and deletes it after reading files. Secrets are never logged; remote URLs are redacted in logs.
+- Endpoint used: GET /api/azdo/items?org=...&project=...&repo=...&ref=... with optional header X-AZDO-PAT (raw PAT) or X-AZDO-Auth (e.g., "Basic base64").
+
+Examples:
+- Given Azure DevOps repo URL:
+  https://dev.azure.com/DSharpFi/Metsa/_git/Metsa
+  - Paste the URL, enter Username (e.g., DSharpFi) and your PAT, click Load.
+  - Under the hood, the app will call: /api/azdo/items?org=DSharpFi&project=Metsa&repo=Metsa with header X-AZDO-Auth: Basic base64(username:PAT) and method=git when "Use local clone" is enabled.
+- curl example using X-AZDO-Auth (username:PAT) with fast local clone:
+  USERNAME="DSharpFi"; PAT="YOUR_PAT"; TOKEN=$(printf "%s:%s" "$USERNAME" "$PAT" | base64)
+  curl -H "X-AZDO-Auth: Basic $TOKEN" "http://localhost:3000/api/azdo/items?org=DSharpFi&project=Metsa&repo=Metsa&ref=refs/heads/main&method=git"
+- curl example with only PAT (server builds Basic token with empty username):
+  curl -H "X-AZDO-PAT: YOUR_PAT" "http://localhost:3000/api/azdo/items?org=DSharpFi&project=Metsa&repo=Metsa&ref=refs/heads/develop&path=/data/_Content&method=git"
+- JavaScript fetch example in the browser (same origin) using URL parsing on the client:
+  const url = 'https://dev.azure.com/DSharpFi/Metsa/_git/Metsa';
+  const m = url.match(/^https?:\/\/[^/]+\/([^/]+)\/([^/]+)\/_git\/([^/?#]+)/);
+  const org = m[1], project = m[2], repo = m[3];
+  const token = btoa((localStorage.getItem('azdo_user')||'') + ':' + (localStorage.getItem('azdo_pat')||''));
+  fetch(`/api/azdo/items?org=${org}&project=${project}&repo=${repo}&ref=refs/heads/main&path=/&method=git`, { headers: { 'X-AZDO-Auth': 'Basic ' + token }})
+    .then(r => r.json())
+    .then(({ entries }) => {
+      console.log(entries.length, 'files');
+    });
 
 ## Azure DevOps configuration
 - Generate a Personal Access Token (PAT) from Azure DevOps
   - Scope: Code (Read) is sufficient
-- Export the PAT before starting the app:
+- Client-side (recommended): Paste your PAT in the UI (it’s stored only in your browser’s localStorage). The PAT is sent to the server only to forward your request to Azure DevOps and is not persisted server-side.
+- There is no server-side PAT. Each user must provide PAT from the browser.
 
-  On macOS/Linux:
-  export AZDO_PAT=your_pat_here
-  npm start
-
-  On Windows PowerShell:
-  $env:AZDO_PAT = "your_pat_here"
+  Start the server:
   npm start
 
 ## Data format assumptions
@@ -77,14 +99,25 @@ Notes:
 - References can be by class id or by fully-qualified path like Model/Submodel/ClassName.
 
 ## Troubleshooting
-- 500: Server missing AZDO_PAT environment variable
-  - Set AZDO_PAT and restart the server.
+- Where to see logs?
+  - In-app: Open the “Log” panel under the diagram for a timestamped log of Azure DevOps loads (inputs, request URL, requestId, success/error). Use the Clear button to reset.
+  - Browser: Open DevTools Console to see the “[AZDO] Load debug” group with detailed diagnostics.
+  - Server: Check the server terminal output for lines prefixed with [azdo:<requestId>] to correlate with the browser request.
+  - Alerts: Error dialogs now include the requestId to help correlate with server logs.
+- Legacy server message: “Server missing AZDO_PAT environment variable” (HTTP 500)
+  - Your server is running an outdated build that required a server-side AZDO_PAT. Restart/deploy the current server (no server PAT required) and try again, or temporarily set AZDO_PAT on the server as a workaround. Then retry with Username and PAT from the browser.
+- Success with files=0 (nothing shows)
+  - The viewer only loads JSON files. Ensure the branch contains model files (e.g., model.json, classes/*.json, or DSharp _Content/*.json). Try specifying the correct Branch (e.g., develop) and retry. The server now fetches JSON contents per file, so large repos are supported.
+- “Unexpected token '\ufeff' … is not valid JSON”
+  - Some files may include a UTF‑8 BOM. The viewer now strips BOM automatically on both the server fetch path and in the client parser. If you still see this, share the requestId from the alert so we can investigate the file content type returned by Azure DevOps.
+- 401: Missing PAT
+  - Enter your PAT in the UI (or send X-AZDO-PAT/X-AZDO-Auth headers).
 - 404: Repository not found
   - Check org, project, repo values. If you have multiple repos with similar names, try using the repo ID.
 - CORS or auth errors
   - Requests are proxied via the Node server; ensure you’re calling the built-in endpoint /api/azdo/items from the same origin.
 - Branch value
-  - The UI defaults to refs/heads/main if no branch is provided; you can enter just the branch name (e.g., develop) or a full ref (e.g., refs/heads/develop).
+  - If no branch is provided, the server uses the repository's default branch. You can enter just the branch name (e.g., develop), a full ref (e.g., refs/heads/develop), a tag (refs/tags/v1), or a commit SHA.
 
 ## Scripts
 - start: node index.js

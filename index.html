@@ -15,11 +15,19 @@
         <input id="folderInput" type="file" webkitdirectory multiple />
       </label>
       <div class="azdo-controls">
+        <input id="azUrl" placeholder="Azure DevOps Repo URL (e.g., https://dev.azure.com/Org/Project/_git/Repo)" />
+        <input id="azUser" placeholder="Username" />
+        <input id="azPat" type="password" placeholder="Azure DevOps PAT (stored locally)" />
+        <input id="azRef" placeholder="Branch (default: main)" />
+        <label class="small" style="display:inline-flex;gap:6px;align-items:center;margin-left:8px">
+          <input id="azUseGit" type="checkbox" checked />
+          <span>Use local clone (faster)</span>
+        </label>
+        <button id="azLoadBtn" class="btn">Load from DevOps</button>
+        <div class="hint small">Advanced: Org/Project/Repo fields are still supported if URL is empty.</div>
         <input id="azOrg" placeholder="Org" />
         <input id="azProject" placeholder="Project" />
         <input id="azRepo" placeholder="Repository" />
-        <input id="azRef" placeholder="Branch (default: main)" />
-        <button id="azLoadBtn" class="btn">Load from DevOps</button>
       </div>
       <button id="demoBtn" class="btn secondary">Load Demo Project</button>
     </div>
@@ -27,7 +35,7 @@
       Tip: Select your DSharp project root folder. The viewer understands either:
       - DSharp exports in a _Content folder (Model/Submodel/Class/Association mementos), or
       - Simple model.json files and classes/*.json per model.
-      References can be class IDs or paths like "Model/SubModel/ClassName". To load from Azure DevOps Git, set AZDO_PAT on the server and fill Org, Project, Repo, Branch.
+      References can be class IDs or paths like "Model/SubModel/ClassName". To load from Azure DevOps Git, paste Repo URL, enter Username and PAT (stored only in your browser), optionally Branch. Advanced: you can still fill Org/Project/Repo if you prefer.
     </p>
     <div id="loading" aria-live="polite" aria-busy="false" hidden>
       <div class="loader">
@@ -44,6 +52,16 @@
       <svg id="svg" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid meet"></svg>
     </section>
   </main>
+
+  <section id="logPanel" style="border-top:1px solid #ddd;padding:8px 12px">
+    <details id="logDetails">
+      <summary>Log</summary>
+      <div style="margin:6px 0">
+        <button id="logClearBtn" class="btn secondary" type="button">Clear Log</button>
+      </div>
+      <pre id="log" style="max-height:200px;overflow:auto;background:#f8f8f8;border:1px solid #eee;padding:8px;margin:0"></pre>
+    </details>
+  </section>
 
   <footer>
     <span>Assumptions: Each model is a directory; optional model.json with {name, classes, submodels}. Classes may also be in classes/*.json. A class belongs to one model but may be referenced elsewhere; such visiting classes are shown with dashed borders.</span>
