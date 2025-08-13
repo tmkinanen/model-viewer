@@ -22,6 +22,8 @@
 
   let project = null; // { modelsByPath, classesById, classesByFQN }
   let rootPath = '';
+  // Session-scoped saved layouts: modelPath -> { classId -> {x,y} }
+  const layouts = new Map();
 
   folderInput.addEventListener('change', async (e) => {
     const files = [...e.target.files];
@@ -265,19 +267,24 @@
       }
     }
 
-    // Build references from Associations
+    // Build references from Associations and collect canonical association list (with multiplicities)
+    const associations = [];
     for (const obj of elements.values()) {
       if (obj.TypeName === 'Association' && obj.From && obj.To) {
         const fromId = obj.From.ReferencedElementId;
         const toId = obj.To.ReferencedElementId;
         const fromNav = obj.From.IsNavigable !== false; // default true
         const toNav = obj.To.IsNavigable !== false;
+        const fromMult = obj.From.Multiplicity || '';
+        const toMult = obj.To.Multiplicity || '';
+        // keep refs for visiting-class discovery
         if (fromNav && classesById[fromId] && classesById[toId]) {
           classesById[fromId].refs.push(toId);
         }
         if (toNav && classesById[toId] && classesById[fromId]) {
           classesById[toId].refs.push(fromId);
         }
+        associations.push({ fromId, toId, fromNav, toNav, fromMult, toMult });
       }
     }
 
@@ -286,7 +293,7 @@
       modelsByPath[k].submodels = (modelsByPath[k].submodels || []).sort();
     }
 
-    return { modelsByPath, classesById, classesByFQN };
+    return { modelsByPath, classesById, classesByFQN, associations };
   }
 
   function makeId(s){
@@ -381,6 +388,7 @@
       <div class="legend">
         <span><span class="swatch home"></span> Home classes</span>
         <span><span class="swatch visiting"></span> Visiting classes</span>
+        <span style="margin-left:auto;color:#666;font-size:12px">Tip: Drag class boxes to rearrange</span>
       </div>
     `;
     // Layout
@@ -397,58 +405,186 @@
     }
     const nodes = [...byId.values()];
 
-    // Simple grid
+    // Load or initialize layout
+    const modelLayout = layouts.get(path) || {};
     const cols = Math.max(1, Math.floor((1200 - margin*2)/(boxW+gapX)));
     nodes.forEach((n,i)=>{
-      n.x = margin + (i % cols) * (boxW+gapX);
-      n.y = margin + Math.floor(i / cols) * (boxH+gapY) + 40; // leave space for header
+      const saved = modelLayout[n.id];
+      if(saved){ n.x = saved.x; n.y = saved.y; }
+      else{
+        n.x = margin + (i % cols) * (boxW+gapX);
+        n.y = margin + Math.floor(i / cols) * (boxH+gapY) + 40; // header space
+      }
     });
 
-    // Edges: from local classes to their refs
+    // Edges: prefer canonical associations (single edge per association with multiplicities)
     const edges = [];
-    for(const c of localClasses){
-      for(const r of c.refs||[]){
-        const t = resolveRef(r, model.path);
-        if(!t) continue;
-        const src = nodes.find(n=>n.id===c.id);
-        const dst = nodes.find(n=>n.id===t.id);
-        // if target not in nodes and is not local/visiting set (unresolvable in this model), skip drawing
-        if(!src || !dst) continue;
-        edges.push({src, dst});
+    const nodesById = Object.fromEntries(nodes.map(n=>[n.id,n]));
+    if (Array.isArray(project.associations) && project.associations.length) {
+      for (const a of project.associations) {
+        const srcNode = nodesById[a.fromId];
+        const dstNode = nodesById[a.toId];
+        // show an edge only if at least one end is local to this model and both ends are visible
+        const isSrcLocal = !!localClasses.find(c=>c.id===a.fromId);
+        const isDstLocal = !!localClasses.find(c=>c.id===a.toId);
+        if (!(isSrcLocal || isDstLocal)) continue;
+        if (!srcNode || !dstNode) continue;
+        edges.push({ src: srcNode, dst: dstNode, fromMult: a.fromMult || '', toMult: a.toMult || '' });
+      }
+    } else {
+      // Fallback: build from refs but dedupe unordered pairs to avoid double lines
+      const seenPairs = new Set();
+      for (const c of localClasses) {
+        for (const r of c.refs || []) {
+          const t = resolveRef(r, model.path);
+          if (!t) continue;
+          const src = nodesById[c.id];
+          const dst = nodesById[t.id];
+          if (!src || !dst) continue;
+          const key = [src.id, dst.id].sort().join('|');
+          if (seenPairs.has(key)) continue;
+          seenPairs.add(key);
+          edges.push({ src, dst, fromMult: '', toMult: '' });
+        }
       }
     }
 
-    // Draw edges first
-    for(const e of edges){
-      const {x:x1,y:y1} = centerRight(e.src, boxW, boxH);
-      const {x:x2,y:y2} = centerLeft(e.dst, boxW, boxH);
+    // Draw edges (no arrows) and multiplicity labels
+    const edgeElems = [];
+    for (const e of edges) {
+      const pathEl = createSVG('path', { class: 'edge' });
+      // remove arrow marker to avoid implying direction when showing single association line
+      pathEl.setAttribute('marker-end', '');
+      const labelSrc = createSVG('text', { class: 'mult' });
+      const labelDst = createSVG('text', { class: 'mult' });
+      labelSrc.textContent = e.fromMult || '';
+      labelDst.textContent = e.toMult || '';
+      edgeElems.push({ e, pathEl, labelSrc, labelDst });
+      svg.appendChild(pathEl);
+      svg.appendChild(labelSrc);
+      svg.appendChild(labelDst);
+    }
+    function redrawEdge(edgeObj){
+      const {src, dst, fromMult, toMult} = edgeObj.e;
+      const {x:x1,y:y1} = centerRight(src, boxW, boxH);
+      const {x:x2,y:y2} = centerLeft(dst, boxW, boxH);
       const midX = (x1 + x2)/2;
       const d = `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`;
-      const path = createSVG('path', { d, class: 'edge' });
-      svg.appendChild(path);
+      edgeObj.pathEl.setAttribute('d', d);
+      // Position multiplicities slightly outside box edges
+      const off = 6;
+      if (fromMult) {
+        edgeObj.labelSrc.setAttribute('x', x1 + off);
+        edgeObj.labelSrc.setAttribute('y', y1 - 6);
+        edgeObj.labelSrc.textContent = fromMult;
+      } else {
+        edgeObj.labelSrc.textContent = '';
+      }
+      if (toMult) {
+        edgeObj.labelDst.setAttribute('x', x2 - off - 10);
+        edgeObj.labelDst.setAttribute('y', y2 - 6);
+        edgeObj.labelDst.textContent = toMult;
+      } else {
+        edgeObj.labelDst.textContent = '';
+      }
     }
+    function redrawAllEdges(){ edgeElems.forEach(redrawEdge); }
+    redrawAllEdges();
 
-    // Draw nodes
+    // Draw nodes and make them draggable
     for(const n of nodes){
-      const g = createSVG('g', {});
+      const g = createSVG('g', { 'data-id': n.id });
       const rect = createSVG('rect', {
         x: n.x, y: n.y, width: boxW, height: boxH, rx: 8, ry: 8,
         class: 'class-box' + (n._visiting? ' visiting':'')
       });
-      const label = createSVG('text', {
-        x: n.x + 12, y: n.y + 24, class: 'class-label'
-      });
+      const label = createSVG('text', { x: n.x + 12, y: n.y + 24, class: 'class-label' });
       label.textContent = n.name;
-      const sub = createSVG('text', {
-        x: n.x + 12, y: n.y + 44, class: 'class-label', fill: '#555'
-      });
+      const sub = createSVG('text', { x: n.x + 12, y: n.y + 44, class: 'class-label', fill: '#555' });
       sub.textContent = n._visiting ? `(from ${n.homeModelPath||'Root'})` : '';
 
       g.appendChild(rect);
       g.appendChild(label);
       g.appendChild(sub);
       svg.appendChild(g);
+
+      // Store element refs for fast updates
+      n._el = { g, rect, label, sub };
     }
+
+    // Build adjacency: for quick edge updates on drag
+    const edgesByNodeId = new Map();
+    for (const eo of edgeElems) {
+      const { e } = eo;
+      if (!edgesByNodeId.has(e.src.id)) edgesByNodeId.set(e.src.id, []);
+      if (!edgesByNodeId.has(e.dst.id)) edgesByNodeId.set(e.dst.id, []);
+      // Store the full edge object (includes labels) so redrawEdge can move multiplicity labels too
+      edgesByNodeId.get(e.src.id).push(eo);
+      edgesByNodeId.get(e.dst.id).push(eo);
+    }
+
+    // Pointer-based dragging
+    let dragState = null; // { id, offsetX, offsetY }
+
+    function svgPointFromEvent(evt){
+      const pt = svg.createSVGPoint();
+      pt.x = evt.clientX; pt.y = evt.clientY;
+      const ctm = svg.getScreenCTM();
+      return ctm ? pt.matrixTransform(ctm.inverse()) : { x: evt.clientX, y: evt.clientY };
+    }
+
+    function onPointerDown(evt){
+      const g = evt.currentTarget;
+      const id = g.getAttribute('data-id');
+      const node = nodesById[id];
+      if(!node) return;
+      const p = svgPointFromEvent(evt);
+      dragState = { id, offsetX: p.x - node.x, offsetY: p.y - node.y };
+      g.setPointerCapture?.(evt.pointerId);
+      evt.preventDefault();
+    }
+    function onPointerMove(evt){
+      if(!dragState) return;
+      const node = nodesById[dragState.id];
+      const p = svgPointFromEvent(evt);
+      node.x = p.x - dragState.offsetX;
+      node.y = p.y - dragState.offsetY;
+      // Update DOM positions
+      node._el.rect.setAttribute('x', node.x);
+      node._el.rect.setAttribute('y', node.y);
+      node._el.label.setAttribute('x', node.x + 12);
+      node._el.label.setAttribute('y', node.y + 24);
+      node._el.sub.setAttribute('x', node.x + 12);
+      node._el.sub.setAttribute('y', node.y + 44);
+      // Update connected edges only
+      const related = edgesByNodeId.get(node.id) || [];
+      for(const eo of related){ redrawEdge(eo); }
+    }
+    function onPointerUp(evt){
+      if(!dragState) return;
+      const node = nodesById[dragState.id];
+      // Persist layout for this model
+      const ml = layouts.get(path) || {};
+      ml[node.id] = { x: node.x, y: node.y };
+      layouts.set(path, ml);
+      dragState = null;
+    }
+
+    // Clean up old handlers on svg if any
+    if(svg._dragHandlers){
+      svg.removeEventListener('pointermove', svg._dragHandlers.move);
+      svg.removeEventListener('pointerup', svg._dragHandlers.up);
+    }
+    svg._dragHandlers = { move: onPointerMove, up: onPointerUp };
+
+    // Attach handlers to each group
+    for(const n of nodes){
+      const g = n._el.g;
+      g.style.cursor = 'move';
+      g.addEventListener('pointerdown', onPointerDown);
+    }
+    svg.addEventListener('pointermove', onPointerMove);
+    svg.addEventListener('pointerup', onPointerUp);
   }
 
   function centerRight(node, w, h){ return { x: node.x + w, y: node.y + h/2 }; }

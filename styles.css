@@ -23,8 +23,9 @@ aside#tree{border-right:1px solid #e5e5e5;padding:12px;overflow:auto}
 .legend .swatch{display:inline-block;width:12px;height:12px;border:2px solid #000}
 .swatch.home{background:#e3f2fd;border-color:#1976d2}
 .swatch.visiting{background:#fff;border-color:#999;border-style:dashed}
-.class-box{fill:#e3f2fd;stroke:#1976d2;stroke-width:2}
+.class-box{fill:#e3f2fd;stroke:#1976d2;stroke-width:2;cursor:move}
 .class-box.visiting{fill:#fff;stroke:#999;stroke-dasharray:6 4}
 .class-label{font-size:12px;fill:#0d47a1}
-.edge{stroke:#555;stroke-width:1.5;fill:none;marker-end:url(#arrow)}
+.edge{stroke:#555;stroke-width:1.5;fill:none;}
+.mult{font-size:11px;fill:#333;pointer-events:none;user-select:none}
 footer{padding:10px 16px;border-top:1px solid #eee;background:#fafafa;color:#555;font-size:13px}
