@@ -2,6 +2,8 @@
 
 A minimal web app to visualize a DSharp‑like UML project structure. It shows models/submodels, renders class nodes, and draws references. Classes referenced from other models appear as “visiting” with dashed borders. You can drag class boxes in the diagram to rearrange them; the layout is remembered per model during your session.
 
+Classes are colored by Peter Coad’s Object Modeling in Color archetypes: Party/Place/Thing (green), Role (yellow), Description (blue), Moment-Interval (pink). A simple name-based heuristic infers the archetype; visiting classes keep a dashed border but retain their archetype color.
+
 ## Run locally
 
 Prerequisites:

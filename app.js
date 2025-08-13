@@ -386,8 +386,11 @@
     modelHeader.innerHTML = `
       <div><strong>Model:</strong> ${model.name} <span style="color:#666">(${path||'Root'})</span></div>
       <div class="legend">
-        <span><span class="swatch home"></span> Home classes</span>
-        <span><span class="swatch visiting"></span> Visiting classes</span>
+        <span><span class="swatch ppt"></span> Party/Place/Thing</span>
+        <span><span class="swatch role"></span> Role</span>
+        <span><span class="swatch desc"></span> Description</span>
+        <span><span class="swatch moment"></span> Moment-Interval</span>
+        <span><span class="swatch visiting"></span> Visiting (dashed)</span>
         <span style="margin-left:auto;color:#666;font-size:12px">Tip: Drag class boxes to rearrange</span>
       </div>
     `;
@@ -404,6 +407,11 @@
       else if(c._visiting) byId.get(c.id)._visiting=true;
     }
     const nodes = [...byId.values()];
+
+    // Determine archetype for each node (Peter Coad)
+    for (const n of nodes) {
+      n._arch = determineArchetype(n);
+    }
 
     // Load or initialize layout
     const modelLayout = layouts.get(path) || {};
@@ -495,48 +503,101 @@
       return 'middle'; // top/bottom
     }
 
-    function redrawEdge(edgeObj){
-      const {src, dst, fromMult, toMult} = edgeObj.e;
-      const centerSrc = { x: src.x + boxW/2, y: src.y + boxH/2 };
-      const centerDst = { x: dst.x + boxW/2, y: dst.y + boxH/2 };
-      const p1 = attachmentPoint(src, centerDst);
-      const p2 = attachmentPoint(dst, centerSrc);
-      // Build rectilinear (orthogonal) path with a single bend
-      let points = [];
-      points.push({ x: p1.x, y: p1.y });
-      if (p1.x === p2.x || p1.y === p2.y) {
-        // Aligned horizontally or vertically: straight segment
-        // no intermediate bend needed
-      } else if (p1.side === 'left' || p1.side === 'right') {
-        // Move horizontally first, then vertically
-        points.push({ x: p2.x, y: p1.y });
-      } else {
-        // From top or bottom: move vertically first, then horizontally
-        points.push({ x: p1.x, y: p2.y });
+    function computeAttachmentsForAll() {
+      // First pass: compute raw attachments for grouping
+      const att = edgeElems.map(eo => {
+        const { src, dst } = eo.e;
+        const centerSrc = { x: src.x + boxW/2, y: src.y + boxH/2 };
+        const centerDst = { x: dst.x + boxW/2, y: dst.y + boxH/2 };
+        const p1 = attachmentPoint(src, centerDst);
+        const p2 = attachmentPoint(dst, centerSrc);
+        return { eo, p1, p2 };
+      });
+      // Group by node+side for both ends
+      const groups = new Map(); // key -> array of indices
+      function keyFor(kind, nodeId, side){ return kind + '|' + nodeId + '|' + side; }
+      att.forEach((item, idx) => {
+        const { eo, p1, p2 } = item;
+        const k1 = keyFor('src', eo.e.src.id, p1.side);
+        const k2 = keyFor('dst', eo.e.dst.id, p2.side);
+        if (!groups.has(k1)) groups.set(k1, []);
+        if (!groups.has(k2)) groups.set(k2, []);
+        groups.get(k1).push(idx);
+        groups.get(k2).push(idx);
+      });
+      // Apply perpendicular offsets within each group
+      const spacing = 6;
+      for (const arr of groups.values()) {
+        const n = arr.length;
+        if (n <= 1) continue;
+        // distribute indices around 0
+        const mid = (n - 1) / 2;
+        arr.sort((a, b) => a - b); // stable
+        arr.forEach((idx, i) => {
+          const delta = (i - mid) * spacing;
+          const item = att[idx];
+          // offset p1 perpendicular to its normal
+          if (item && item.p1) {
+            if (item.p1.side === 'left' || item.p1.side === 'right') {
+              item.p1 = { ...item.p1, y: item.p1.y + delta };
+            } else {
+              item.p1 = { ...item.p1, x: item.p1.x + delta };
+            }
+          }
+          // offset p2 perpendicular to its normal
+          if (item && item.p2) {
+            if (item.p2.side === 'left' || item.p2.side === 'right') {
+              item.p2 = { ...item.p2, y: item.p2.y + delta };
+            } else {
+              item.p2 = { ...item.p2, x: item.p2.x + delta };
+            }
+          }
+        });
       }
-      points.push({ x: p2.x, y: p2.y });
-      const d = points.map((pt, idx) => (idx === 0 ? `M ${pt.x} ${pt.y}` : `L ${pt.x} ${pt.y}`)).join(' ');
-      edgeObj.pathEl.setAttribute('d', d);
-      // Position multiplicities slightly outside box edges along outward normal
-      const off = 8;
-      if (fromMult) {
-        edgeObj.labelSrc.setAttribute('x', p1.x + p1.nx * off);
-        edgeObj.labelSrc.setAttribute('y', p1.y + p1.ny * off - 2);
-        edgeObj.labelSrc.setAttribute('text-anchor', labelAnchorForSide(p1.side));
-        edgeObj.labelSrc.textContent = fromMult;
-      } else {
-        edgeObj.labelSrc.textContent = '';
-      }
-      if (toMult) {
-        edgeObj.labelDst.setAttribute('x', p2.x + p2.nx * off);
-        edgeObj.labelDst.setAttribute('y', p2.y + p2.ny * off - 2);
-        edgeObj.labelDst.setAttribute('text-anchor', labelAnchorForSide(p2.side));
-        edgeObj.labelDst.textContent = toMult;
-      } else {
-        edgeObj.labelDst.textContent = '';
+      return att;
+    }
+
+    function redrawAllEdges(){
+      const att = computeAttachmentsForAll();
+      const stub = 16;
+      const labelOff = 8;
+      for (const { eo, p1, p2 } of att) {
+        const p1o = { x: p1.x + p1.nx * stub, y: p1.y + p1.ny * stub };
+        const p2o = { x: p2.x + p2.nx * stub, y: p2.y + p2.ny * stub };
+        const points = [];
+        points.push({ x: p1.x, y: p1.y });
+        points.push(p1o);
+        if (p1o.x === p2o.x || p1o.y === p2o.y) {
+          // direct orthogonal connection between offset points
+        } else if (p1.side === 'left' || p1.side === 'right') {
+          points.push({ x: p2o.x, y: p1o.y });
+        } else {
+          points.push({ x: p1o.x, y: p2o.y });
+        }
+        points.push(p2o);
+        points.push({ x: p2.x, y: p2.y });
+        const d = points.map((pt, idx) => (idx === 0 ? `M ${pt.x} ${pt.y}` : `L ${pt.x} ${pt.y}`)).join(' ');
+        eo.pathEl.setAttribute('d', d);
+        // multiplicities at adjusted attachment points
+        const { fromMult, toMult } = eo.e;
+        if (fromMult) {
+          eo.labelSrc.setAttribute('x', p1.x + p1.nx * labelOff);
+          eo.labelSrc.setAttribute('y', p1.y + p1.ny * labelOff - 2);
+          eo.labelSrc.setAttribute('text-anchor', labelAnchorForSide(p1.side));
+          eo.labelSrc.textContent = fromMult;
+        } else {
+          eo.labelSrc.textContent = '';
+        }
+        if (toMult) {
+          eo.labelDst.setAttribute('x', p2.x + p2.nx * labelOff);
+          eo.labelDst.setAttribute('y', p2.y + p2.ny * labelOff - 2);
+          eo.labelDst.setAttribute('text-anchor', labelAnchorForSide(p2.side));
+          eo.labelDst.textContent = toMult;
+        } else {
+          eo.labelDst.textContent = '';
+        }
       }
     }
-    function redrawAllEdges(){ edgeElems.forEach(redrawEdge); }
     redrawAllEdges();
 
     // Draw nodes and make them draggable
@@ -544,7 +605,7 @@
       const g = createSVG('g', { 'data-id': n.id });
       const rect = createSVG('rect', {
         x: n.x, y: n.y, width: boxW, height: boxH, rx: 8, ry: 8,
-        class: 'class-box' + (n._visiting? ' visiting':'')
+        class: 'class-box' + (n._arch ? (' arch-' + n._arch) : '') + (n._visiting? ' visiting':'')
       });
       const label = createSVG('text', { x: n.x + 12, y: n.y + 24, class: 'class-label' });
       label.textContent = n.name;
@@ -604,9 +665,8 @@
       node._el.label.setAttribute('y', node.y + 24);
       node._el.sub.setAttribute('x', node.x + 12);
       node._el.sub.setAttribute('y', node.y + 44);
-      // Update connected edges only
-      const related = edgesByNodeId.get(node.id) || [];
-      for(const eo of related){ redrawEdge(eo); }
+      // Update edges (recompute groups so connections don't overlap)
+      redrawAllEdges();
     }
     function onPointerUp(evt){
       if(!dragState) return;
@@ -651,6 +711,43 @@
     const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
     for(const k in attrs){ el.setAttribute(k, attrs[k]); }
     return el;
+  }
+
+  // Determine Peter Coad archetype from class name and simple heuristics
+  // Returns one of: 'ppt' (Party/Place/Thing), 'role', 'desc', 'moment'
+  function determineArchetype(cls){
+    const name = (cls?.name || '').trim();
+    const n = name.toLowerCase();
+    // If future DSharp metadata provides explicit tags/stereotypes, prefer them here
+    // e.g., cls.stereotype or cls.tags
+
+    // Explicit keywords lists (whitelists beat suffix rules)
+    const pptKeywords = new Set([
+      'customer','account','person','user','employee','company','organization','organisation','vendor','supplier','client','product','item','article','vehicle','asset','document','file','address','city','country','location','place','store','warehouse','department','project','team','accounting entry','accountingentry','account','orderline','order line'
+    ]);
+    const momentKeywords = new Set([
+      'order','reservation','booking','payment','invoice','shipment','delivery','event','session','transaction','transfer','change','movement','enrollment','enrolment','subscription','hire','visit','interaction','request','response','message','task','activity','assignment','audit','log','record','entry'
+    ]);
+    const descSuffixes = ['type','kind','category','status','spec','specification','description','info','details','rule','policy','plan','option','parameter','setting','template','profile','code','reason'];
+    const roleKeywords = new Set(['owner','manager','driver','approver','assignee','reviewer','member','admin','agent','operator','controller','holder','teacher','student','author','editor']);
+
+    // 1) Descriptions by suffix
+    for(const s of descSuffixes){ if(n===s || n.endsWith(' '+s) || n.endsWith('_'+s) || n.endsWith('-'+s)) return 'desc'; }
+
+    // 2) Moment-Interval by explicit keywords
+    if(momentKeywords.has(n)) return 'moment';
+
+    // 3) Party/Place/Thing by explicit keywords (overrides role suffixes like -er)
+    if(pptKeywords.has(n)) return 'ppt';
+
+    // 4) Role by explicit words
+    if(roleKeywords.has(n)) return 'role';
+
+    // 5) Role by common agentive suffixes, but avoid some common P/PT like 'customer'
+    if(/(er|or|ist|ant|ee)s?$/.test(n) && n !== 'customer') return 'role';
+
+    // 6) Default P/PT
+    return 'ppt';
   }
 
   function buildDemoProject(){

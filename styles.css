@@ -24,8 +24,18 @@ aside#tree{border-right:1px solid #e5e5e5;padding:12px;overflow:auto}
 .swatch.home{background:#e3f2fd;border-color:#1976d2}
 .swatch.visiting{background:#fff;border-color:#999;border-style:dashed}
 .class-box{fill:#e3f2fd;stroke:#1976d2;stroke-width:2;cursor:move}
-.class-box.visiting{fill:#fff;stroke:#999;stroke-dasharray:6 4}
+.class-box.visiting{stroke-dasharray:6 4}
 .class-label{font-size:12px;fill:#0d47a1}
+/* Peter Coad archetype colors */
+.class-box.arch-ppt{fill:#C8E6C9;stroke:#2E7D32}
+.class-box.arch-role{fill:#FFF9C4;stroke:#F9A825}
+.class-box.arch-desc{fill:#BBDEFB;stroke:#1565C0}
+.class-box.arch-moment{fill:#F8BBD0;stroke:#AD1457}
+/* Legend swatches for archetypes */
+.swatch.ppt{background:#C8E6C9;border-color:#2E7D32}
+.swatch.role{background:#FFF9C4;border-color:#F9A825}
+.swatch.desc{background:#BBDEFB;border-color:#1565C0}
+.swatch.moment{background:#F8BBD0;border-color:#AD1457}
 .edge{stroke:#555;stroke-width:1.5;fill:none;stroke-linejoin:round;stroke-linecap:square}
 .mult{font-size:11px;fill:#333;pointer-events:none;user-select:none}
 footer{padding:10px 16px;border-top:1px solid #eee;background:#fafafa;color:#555;font-size:13px}
