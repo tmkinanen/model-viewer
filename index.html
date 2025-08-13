@@ -29,6 +29,12 @@
       - Simple model.json files and classes/*.json per model.
       References can be class IDs or paths like "Model/SubModel/ClassName". To load from Azure DevOps Git, set AZDO_PAT on the server and fill Org, Project, Repo, Branch.
     </p>
+    <div id="loading" aria-live="polite" aria-busy="false" hidden>
+      <div class="loader">
+        <div class="spinner" aria-hidden="true"></div>
+        <div class="msg">Loading…</div>
+      </div>
+    </div>
   </header>
 
   <main>

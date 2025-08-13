@@ -4,6 +4,8 @@ A minimal web app to visualize a DSharp‑like UML project structure. It shows m
 
 Classes are colored by Peter Coad’s Object Modeling in Color archetypes: Party/Place/Thing (green), Role (yellow), Description (blue), Moment-Interval (pink). When loading a DSharp _Content export, the viewer reads Class details (…_CLASS_DETAILS.json) and uses the explicit Archetype there; it falls back to a name-based heuristic only if metadata is missing. Visiting classes keep a dashed border but retain their archetype color.
 
+Attributes (lazy): Each class box has a +/− toggle in the top-right. Click + to expand the box and reveal its attributes; click − to collapse. Attributes are parsed from DSharp _Content (Attribute mementos) and rendered on demand. The initial model render avoids drawing attributes to keep the view fast; you can expand only the classes you care about. The diagram re-routes orthogonal edges and adjusts to avoid overlaps when boxes are expanded.
+
 Visiting class logic (DSharp _Content): when associations (with multiplicities) are available, a diagram only shows a visiting class for a visible local class if the local class “holds the foreign key” to a single opposite instance.
 
 Foreign key direction rule:

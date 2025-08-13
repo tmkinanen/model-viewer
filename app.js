@@ -19,6 +19,8 @@
   const azRepo = document.getElementById('azRepo');
   const azRef = document.getElementById('azRef');
   const azLoadBtn = document.getElementById('azLoadBtn');
+  const loadingEl = document.getElementById('loading');
+  const loadingMsgEl = loadingEl?.querySelector('.msg');
 
   let project = null; // { modelsByPath, classesById, classesByFQN }
   let rootPath = '';
@@ -30,22 +32,35 @@
   const zoomStates = new Map();
   // Per-model arrange state: modelPath -> { index }
   const arrangeStates = new Map();
+  // Per-model expanded attributes state: modelPath -> Set<classId>
+  const expandedAttrs = new Map();
 
   folderInput.addEventListener('change', async (e) => {
     const files = [...e.target.files];
     if (!files.length) return;
-    rootPath = commonPrefix(files.map(f => f.webkitRelativePath));
-    project = await buildProjectFromFiles(files);
-    renderTree(project);
-    selectModel(rootPath);
+    try{
+      showLoading('Reading project files…');
+      rootPath = commonPrefix(files.map(f => f.webkitRelativePath));
+      project = await buildProjectFromFiles(files);
+      updateLoading('Rendering…');
+      renderTree(project);
+      selectModel(rootPath);
+    } finally {
+      hideLoading();
+    }
   });
 
   demoBtn.addEventListener('click', () => {
-    project = buildDemoProject();
-    rootPath = '';
-    renderTree(project);
-    const firstModel = Object.keys(project.modelsByPath).sort()[0] || '';
-    selectModel(firstModel);
+    try{
+      showLoading('Loading demo…');
+      project = buildDemoProject();
+      rootPath = '';
+      renderTree(project);
+      const firstModel = Object.keys(project.modelsByPath).sort()[0] || '';
+      selectModel(firstModel);
+    } finally {
+      hideLoading();
+    }
   });
 
   azLoadBtn?.addEventListener('click', async () => {
@@ -58,19 +73,24 @@
       return;
     }
     try{
+      showLoading('Fetching from Azure DevOps…');
       const params = new URLSearchParams({ org, project: projectName, repo });
       if(ref) params.set('ref', ref);
       const resp = await fetch('/api/azdo/items?' + params.toString());
       const data = await resp.json();
       if(!resp.ok){ throw new Error(data && data.error || 'Failed to load from DevOps'); }
       const entries = data.entries || [];
+      updateLoading('Parsing project…');
       project = await buildProjectFromEntries(entries);
+      updateLoading('Rendering…');
       renderTree(project);
       const firstModel = Object.keys(project.modelsByPath).sort()[0] || '';
       selectModel(firstModel);
     }catch(e){
       console.error(e);
       alert('Azure DevOps load failed: ' + e.message);
+    } finally {
+      hideLoading();
     }
   });
 
@@ -90,14 +110,20 @@
   async function buildProjectFromFiles(files){
     // Convert File objects to entries {path, text}
     const entries = [];
+    let i = 0;
     for (const f of files) {
-      entries.push({ path: f.webkitRelativePath, text: await f.text() });
+      // Read sequentially to keep memory lower; update message occasionally
+      const text = await f.text();
+      entries.push({ path: f.webkitRelativePath, text });
+      i++;
+      if (i % 25 === 0) updateLoading(`Reading files… ${i}/${files.length}`);
     }
     return buildProjectFromEntries(entries);
   }
 
   async function buildProjectFromEntries(entries){
     // Normalize virtual filesystem from entries
+    updateLoading('Preparing files…');
     const vfs = new Map(); // path -> text
     for(const e of entries){
       if (e && typeof e.path === 'string') vfs.set(e.path, e.text || '');
@@ -295,6 +321,21 @@
       }
     }
 
+    // Collect attributes (ElementAttributeMemento) per class
+    const attributesByClassId = {};
+    for (const obj of elements.values()) {
+      if (obj.TypeName === 'Attribute' && obj.ParentTypeName === 'Class') {
+        const classId = obj.ParentId;
+        if (!attributesByClassId[classId]) attributesByClassId[classId] = [];
+        attributesByClassId[classId].push({
+          id: obj.Id,
+          name: obj.Name || obj.Id,
+          multiplicity: obj.Multiplicity || '',
+          datatype: normalizeAttrDatatype(obj.DatatypeId, obj.DatatypeTypeName)
+        });
+      }
+    }
+
     // Build references from Associations and collect canonical association list (with multiplicities)
     const associations = [];
     for (const obj of elements.values()) {
@@ -348,7 +389,7 @@
       }
     }
 
-    return { modelsByPath, classesById, classesByFQN, associations, shapesByModelPath };
+    return { modelsByPath, classesById, classesByFQN, associations, shapesByModelPath, attributesByClassId };
   }
 
   function makeId(s){
@@ -357,12 +398,55 @@
   function hashCode(str){
     let h=0; for(let i=0;i<str.length;i++){ h=((h<<5)-h)+str.charCodeAt(i); h|=0; } return (h>>>0).toString(36);
   }
+  function normalizeAttrDatatype(datatypeId, datatypeTypeName){
+    let s = '';
+    if (typeof datatypeId === 'string' && datatypeId.trim()) {
+      s = datatypeId.trim();
+    } else if (typeof datatypeTypeName === 'string' && datatypeTypeName.trim()) {
+      // Usually generic like "Attribute datatype"; no specific token – return empty
+      s = '';
+    }
+    if (!s) return '';
+    // Split on common separators and take the last non-empty token
+    const parts = s.split(/[./\\]/).filter(Boolean);
+    const tail = parts.length ? parts[parts.length - 1] : s;
+    return String(tail).trim().toLowerCase();
+  }
+
+  // Loading overlay helpers
+  function showLoading(msg){
+    if (!loadingEl) return;
+    loadingEl.hidden = false;
+    loadingEl.setAttribute('aria-busy','true');
+    if (loadingMsgEl && msg) loadingMsgEl.textContent = msg;
+  }
+  function updateLoading(msg){
+    if (loadingMsgEl && msg) loadingMsgEl.textContent = msg;
+  }
+  function hideLoading(){
+    if (!loadingEl) return;
+    loadingEl.hidden = true;
+    loadingEl.setAttribute('aria-busy','false');
+  }
 
   function renderTree(project){
     const root = findRootModelPath(project.modelsByPath);
     treeEl.innerHTML = '';
     const rootContainer = document.createElement('div');
     treeEl.appendChild(rootContainer);
+
+    // Compute total number of classes in subtree for each model (memoized)
+    const totalCountCache = new Map();
+    function countClassesRec(p){
+      if (totalCountCache.has(p)) return totalCountCache.get(p);
+      const m = project.modelsByPath[p];
+      if (!m) { totalCountCache.set(p, 0); return 0; }
+      let sum = Array.isArray(m.classes) ? m.classes.length : 0;
+      const children = m.submodels || [];
+      for (const c of children) sum += countClassesRec(c);
+      totalCountCache.set(p, sum);
+      return sum;
+    }
 
     const buildInto = (path, container)=>{
       const m = project.modelsByPath[path];
@@ -398,7 +482,7 @@
       // Badge
       const badge = document.createElement('span');
       badge.className = 'badge';
-      badge.textContent = String(m.classes.length);
+      badge.textContent = String(countClassesRec(path));
 
       row.appendChild(twisty);
       row.appendChild(icon);
@@ -653,6 +737,52 @@
       }
     });
 
+    // Initialize node heights (support attribute expansion)
+    const expSet = expandedAttrs.get(path) || new Set();
+    function computeNodeHeight(n){
+      const attrs = (project.attributesByClassId && project.attributesByClassId[n.id]) || [];
+      if (expSet.has(n.id) && attrs.length){
+        const extra = 8 + attrs.length * 16; // padding + line height
+        return boxH + extra;
+      }
+      return boxH;
+    }
+    for (const n of nodes){ n.h = computeNodeHeight(n); }
+
+    // Measure text to compute per-node width
+    function measureTextWidth(text, cls){
+      const t = createSVG('text', { x: 0, y: 0, class: cls || 'class-label' });
+      t.setAttribute('visibility','hidden');
+      t.textContent = text || '';
+      // append to vp for accurate measurement
+      const parent = svg.querySelector('#vp') || svg;
+      parent.appendChild(t);
+      const w = (t.getBBox?.().width) || 0;
+      parent.removeChild(t);
+      return w;
+    }
+    function computeNodeWidth(n){
+      const base = 180;
+      let maxText = 0;
+      // Class name
+      maxText = Math.max(maxText, measureTextWidth(n.name || '', 'class-label'));
+      // Subtitle (visiting)
+      const subText = n._visiting ? `(from ${n.homeModelPath||'Root'})` : '';
+      if (subText) maxText = Math.max(maxText, measureTextWidth(subText, 'class-label'));
+      // Attributes if expanded
+      const attrs = (project.attributesByClassId && project.attributesByClassId[n.id]) || [];
+      if (expSet.has(n.id) && attrs.length){
+        for (const a of attrs){
+          const line = `${a.name}${a.datatype? ': '+a.datatype:''}${a.multiplicity? ' ['+a.multiplicity+']':''}`;
+          maxText = Math.max(maxText, measureTextWidth(line, 'class-label'));
+        }
+      }
+      const padLeft = 12, padRight = 12, btnSpace = 26; // include room for +/- button
+      const required = Math.ceil(maxText + padLeft + Math.max(padRight, btnSpace));
+      return Math.max(base, required);
+    }
+    for (const n of nodes){ n.w = computeNodeWidth(n); }
+
     // Build links for layout (undirected)
     const nodesByIdMap = Object.fromEntries(nodes.map(n=>[n.id,n]));
     const localSetForLayout = new Set(localClasses.map(c=>c.id));
@@ -687,8 +817,10 @@
         for (let i = 0; i < N; i++){
           for (let j = i+1; j < N; j++){
             const a = nodeList[i], b = nodeList[j];
-            const ax2 = a.x + boxW, ay2 = a.y + boxH;
-            const bx2 = b.x + boxW, by2 = b.y + boxH;
+            const ah = a.h || boxH, bh = b.h || boxH;
+            const aw = a.w || boxW, bw = b.w || boxW;
+            const ax2 = a.x + aw, ay2 = a.y + ah;
+            const bx2 = b.x + bw, by2 = b.y + bh;
             const overlapX = Math.min(ax2, bx2) - Math.max(a.x, b.x);
             const overlapY = Math.min(ay2, by2) - Math.max(a.y, b.y);
             if (overlapX > 0 && overlapY > 0){
@@ -737,8 +869,10 @@
         for (let i = 0; i < N; i++){
           for (let j = i+1; j < N; j++){
             const ni = nodeList[i], nj = nodeList[j];
-            let dx = (ni.x + 0.5*boxW) - (nj.x + 0.5*boxW);
-            let dy = (ni.y + 0.5*boxH) - (nj.y + 0.5*boxH);
+            const wi = ni.w || boxW, wj = nj.w || boxW;
+            const hi = ni.h || boxH, hj = nj.h || boxH;
+            let dx = (ni.x + 0.5*wi) - (nj.x + 0.5*wj);
+            let dy = (ni.y + 0.5*hi) - (nj.y + 0.5*hj);
             const dist = Math.hypot(dx, dy) || 0.0001;
             const force = repulsiveForce(dist);
             const ux = dx / dist, uy = dy / dist;
@@ -751,8 +885,10 @@
           const ia = indexById.get(a), ib = indexById.get(b);
           if (ia == null || ib == null) continue;
           const na = nodeList[ia], nb = nodeList[ib];
-          let dx = (na.x + 0.5*boxW) - (nb.x + 0.5*boxW);
-          let dy = (na.y + 0.5*boxH) - (nb.y + 0.5*boxH);
+          const waw = na.w || boxW, wbw = nb.w || boxW;
+          const hah = na.h || boxH, hbh = nb.h || boxH;
+          let dx = (na.x + 0.5*waw) - (nb.x + 0.5*wbw);
+          let dy = (na.y + 0.5*hah) - (nb.y + 0.5*hbh);
           const dist = Math.hypot(dx, dy) || 0.0001;
           const force = attractiveForce(dist);
           const ux = dx / dist, uy = dy / dist;
@@ -762,7 +898,9 @@
         // Gravity to center
         for (let i = 0; i < N; i++){
           const n = nodeList[i];
-          const cx = n.x + 0.5*boxW, cy = n.y + 0.5*boxH;
+          const h = n.h || boxH;
+          const w = n.w || boxW;
+          const cx = n.x + 0.5*w, cy = n.y + 0.5*h;
           const dx = cx - center.x, dy = cy - center.y;
           disp[i].x -= dx * 0.03; disp[i].y -= dy * 0.03;
         }
@@ -778,8 +916,10 @@
         for (let i = 0; i < N; i++){
           for (let j = i+1; j < N; j++){
             const a = nodeList[i], b = nodeList[j];
-            const ax2 = a.x + boxW, ay2 = a.y + boxH;
-            const bx2 = b.x + boxW, by2 = b.y + boxH;
+            const ah = a.h || boxH, bh = b.h || boxH;
+            const aw = a.w || boxW, bw = b.w || boxW;
+            const ax2 = a.x + aw, ay2 = a.y + ah;
+            const bx2 = b.x + bw, by2 = b.y + bh;
             const overlapX = Math.min(ax2, bx2) - Math.max(a.x, b.x);
             const overlapY = Math.min(ay2, by2) - Math.max(a.y, b.y);
             if (overlapX > 0 && overlapY > 0){
@@ -803,10 +943,12 @@
       if (!nodeList.length) return;
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       for (const n of nodeList){
+        const h = n.h || boxH;
+        const w = n.w || boxW;
         if (n.x < minX) minX = n.x;
         if (n.y < minY) minY = n.y;
-        if (n.x + boxW > maxX) maxX = n.x + boxW;
-        if (n.y + boxH > maxY) maxY = n.y + boxH;
+        if (n.x + w > maxX) maxX = n.x + w;
+        if (n.y + h > maxY) maxY = n.y + h;
       }
       const padTop = margin; // place content near the top of the SVG
       const pad = margin;
@@ -820,10 +962,11 @@
       // Recompute bounds after shifting
       minX = Infinity; minY = Infinity; maxX = -Infinity; maxY = -Infinity;
       for (const n of nodeList){
+        const h = n.h || boxH; const w = n.w || boxW;
         if (n.x < minX) minX = n.x;
         if (n.y < minY) minY = n.y;
-        if (n.x + boxW > maxX) maxX = n.x + boxW;
-        if (n.y + boxH > maxY) maxY = n.y + boxH;
+        if (n.x + w > maxX) maxX = n.x + w;
+        if (n.y + h > maxY) maxY = n.y + h;
       }
       const width = Math.max(600, (maxX - minX) + pad + margin);
       const height = Math.max(400, (maxY - minY) + pad + margin);
@@ -844,10 +987,12 @@
     function contentBounds(){
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       for (const n of nodes){
+        const h = n.h || boxH;
+        const w = n.w || boxW;
         if (n.x < minX) minX = n.x;
         if (n.y < minY) minY = n.y;
-        if (n.x + boxW > maxX) maxX = n.x + boxW;
-        if (n.y + boxH > maxY) maxY = n.y + boxH;
+        if (n.x + w > maxX) maxX = n.x + w;
+        if (n.y + h > maxY) maxY = n.y + h;
       }
       if (minX === Infinity) return { minX:0, minY:0, width:0, height:0 };
       return { minX, minY, width: maxX - minX, height: maxY - minY };
@@ -945,24 +1090,23 @@
       vp.appendChild(labelDst);
     }
     function attachmentPoint(node, otherCenter) {
-      const cx = node.x + boxW/2;
-      const cy = node.y + boxH/2;
+      const h = node.h || boxH;
+      const w = node.w || boxW;
+      const cx = node.x + w/2;
+      const cy = node.y + h/2;
       const dx = otherCenter.x - cx;
       const dy = otherCenter.y - cy;
       const absDx = Math.abs(dx);
       const absDy = Math.abs(dy);
-      // choose dominant axis to exit rectangle
       if (absDx >= absDy) {
-        // horizontal attachment
         if (dx >= 0) {
-          return { x: node.x + boxW, y: cy, side: 'right', nx: 1, ny: 0 };
+          return { x: node.x + w, y: cy, side: 'right', nx: 1, ny: 0 };
         } else {
           return { x: node.x, y: cy, side: 'left', nx: -1, ny: 0 };
         }
       } else {
-        // vertical attachment
         if (dy >= 0) {
-          return { x: cx, y: node.y + boxH, side: 'bottom', nx: 0, ny: 1 };
+          return { x: cx, y: node.y + h, side: 'bottom', nx: 0, ny: 1 };
         } else {
           return { x: cx, y: node.y, side: 'top', nx: 0, ny: -1 };
         }
@@ -979,8 +1123,8 @@
       // First pass: compute raw attachments for grouping
       const att = edgeElems.map(eo => {
         const { src, dst } = eo.e;
-        const centerSrc = { x: src.x + boxW/2, y: src.y + boxH/2 };
-        const centerDst = { x: dst.x + boxW/2, y: dst.y + boxH/2 };
+        const centerSrc = { x: src.x + (src.w || boxW)/2, y: src.y + (src.h || boxH)/2 };
+        const centerDst = { x: dst.x + (dst.w || boxW)/2, y: dst.y + (dst.h || boxH)/2 };
         const p1 = attachmentPoint(src, centerDst);
         const p2 = attachmentPoint(dst, centerSrc);
         return { eo, p1, p2 };
@@ -1076,7 +1220,7 @@
     for(const n of nodes){
       const g = createSVG('g', { 'data-id': n.id });
       const rect = createSVG('rect', {
-        x: n.x, y: n.y, width: boxW, height: boxH, rx: 8, ry: 8,
+        x: n.x, y: n.y, width: n.w || boxW, height: n.h || boxH, rx: 8, ry: 8,
         class: 'class-box' + (n._arch ? (' arch-' + n._arch) : '') + (n._visiting? ' visiting':'')
       });
       const label = createSVG('text', { x: n.x + 12, y: n.y + 24, class: 'class-label' });
@@ -1087,10 +1231,74 @@
       g.appendChild(rect);
       g.appendChild(label);
       g.appendChild(sub);
+      
+      // Attributes group (initially rendered only if expanded)
+      const attrsGroup = createSVG('g', {});
+      g.appendChild(attrsGroup);
+      
+      // Toggle button in top-right
+      const btn = createSVG('rect', { x: n.x + (n.w || boxW) - 22, y: n.y + 6, width: 16, height: 16, rx: 3, ry: 3, fill: '#fff', stroke: '#999' });
+      const btnTxt = createSVG('text', { x: n.x + boxW - 14, y: n.y + 18, 'text-anchor': 'middle', 'font-size': '12', fill: '#555' });
+      const isExpanded = expSet.has(n.id);
+      btnTxt.textContent = isExpanded ? '−' : '+';
+      g.appendChild(btn);
+      g.appendChild(btnTxt);
+
+      function renderAttributes(){
+        // Clear old
+        while (attrsGroup.firstChild) attrsGroup.removeChild(attrsGroup.firstChild);
+        const list = (project.attributesByClassId && project.attributesByClassId[n.id]) || [];
+        if (!expSet.has(n.id) || list.length === 0) return;
+        const startY = n.y + 64; // below subtitle
+        list.forEach((a, i) => {
+          const t = createSVG('text', { x: n.x + 12, y: startY + i*16, class: 'class-label', fill: '#222' });
+          t.textContent = `${a.name}${a.datatype? ': '+a.datatype:''}${a.multiplicity? ' ['+a.multiplicity+']':''}`;
+          attrsGroup.appendChild(t);
+        });
+      }
+
+      function updateButton(){
+        btn.setAttribute('x', n.x + (n.w || boxW) - 22);
+        btn.setAttribute('y', n.y + 6);
+        btnTxt.setAttribute('x', n.x + (n.w || boxW) - 14);
+        btnTxt.setAttribute('y', n.y + 18);
+        btnTxt.textContent = expSet.has(n.id) ? '−' : '+';
+      }
+
+      function setExpanded(expand){
+        if (expand) expSet.add(n.id); else expSet.delete(n.id);
+        const beforeH = n.h || boxH;
+        const beforeW = n.w || boxW;
+        // recompute size
+        n.h = computeNodeHeight(n);
+        n.w = computeNodeWidth(n);
+        // Update rect size and redraw attrs
+        n._el.rect.setAttribute('height', n.h);
+        n._el.rect.setAttribute('width', n.w);
+        renderAttributes();
+        updateButton();
+        // If size changed, resolve overlaps and fit, then reroute edges
+        if (n.h !== beforeH || n.w !== beforeW){
+          resolveOverlaps(nodes);
+          fitSvgToContent(nodes);
+        }
+        redrawAllEdges();
+        // Persist expanded state
+        expandedAttrs.set(path, expSet);
+      }
+
+      // Button events
+      function onBtnClick(e){ e.stopPropagation(); setExpanded(!expSet.has(n.id)); }
+      btn.addEventListener('click', onBtnClick);
+      btnTxt.addEventListener('click', onBtnClick);
+
+      // Initial attrs rendering if expanded
+      if (isExpanded){ renderAttributes(); }
+
       vp.appendChild(g);
 
       // Store element refs for fast updates
-      n._el = { g, rect, label, sub };
+      n._el = { g, rect, label, sub, attrsGroup, btn, btnTxt };
     }
 
     // Build adjacency: for quick edge updates on drag
@@ -1146,6 +1354,25 @@
       node._el.label.setAttribute('y', node.y + 24);
       node._el.sub.setAttribute('x', node.x + 12);
       node._el.sub.setAttribute('y', node.y + 44);
+      // Move attributes if visible
+      if (node._el.attrsGroup && node._el.attrsGroup.childNodes.length){
+        const startY = node.y + 64;
+        const children = Array.from(node._el.attrsGroup.childNodes);
+        for (let i=0;i<children.length;i++){
+          const t = children[i];
+          if (t && t.setAttribute){
+            t.setAttribute('x', node.x + 12);
+            t.setAttribute('y', startY + i*16);
+          }
+        }
+      }
+      // Update toggle button position
+      if (node._el.btn && node._el.btnTxt){
+        node._el.btn.setAttribute('x', node.x + (node.w || boxW) - 22);
+        node._el.btn.setAttribute('y', node.y + 6);
+        node._el.btnTxt.setAttribute('x', node.x + (node.w || boxW) - 14);
+        node._el.btnTxt.setAttribute('y', node.y + 18);
+      }
       // Update edges (recompute groups so connections don't overlap)
       redrawAllEdges();
     }
@@ -1231,10 +1458,30 @@
       function updateNodeDom(n){
         n._el.rect.setAttribute('x', n.x);
         n._el.rect.setAttribute('y', n.y);
+        n._el.rect.setAttribute('width', n.w || boxW);
         n._el.label.setAttribute('x', n.x + 12);
         n._el.label.setAttribute('y', n.y + 24);
         n._el.sub.setAttribute('x', n.x + 12);
         n._el.sub.setAttribute('y', n.y + 44);
+        // Move attributes if visible
+        if (n._el.attrsGroup && n._el.attrsGroup.childNodes.length){
+          const startY = n.y + 64;
+          const children = Array.from(n._el.attrsGroup.childNodes);
+          for (let i=0;i<children.length;i++){
+            const t = children[i];
+            if (t && t.setAttribute){
+              t.setAttribute('x', n.x + 12);
+              t.setAttribute('y', startY + i*16);
+            }
+          }
+        }
+        // Update button position
+        if (n._el.btn && n._el.btnTxt){
+          n._el.btn.setAttribute('x', n.x + (n.w || boxW) - 22);
+          n._el.btn.setAttribute('y', n.y + 6);
+          n._el.btnTxt.setAttribute('x', n.x + (n.w || boxW) - 14);
+          n._el.btnTxt.setAttribute('y', n.y + 18);
+        }
       }
       function saveLayout(){
         const ml = layouts.get(path) || {};
@@ -1259,11 +1506,12 @@
         } else if (mode === 'circle'){
           const pad = margin + 40;
           const r = Math.max(80, Math.min(300, 30 + N * 12));
-          const cx = pad + r + boxW/2;
+          const cx = pad + r + (Math.max(...nodes.map(nn=>nn.w||boxW)))/2;
           const cy = pad + r + boxH/2;
           for (let i=0;i<N;i++){
             const ang = (2*Math.PI * i) / N;
-            const px = cx + r * Math.cos(ang) - boxW/2;
+            const wi = nodes[i].w || boxW;
+            const px = cx + r * Math.cos(ang) - wi/2;
             const py = cy + r * Math.sin(ang) - boxH/2;
             nodes[i].x = px; nodes[i].y = py;
           }

@@ -41,3 +41,11 @@ aside#tree{border-right:1px solid #e5e5e5;padding:12px;overflow:auto}
 footer{padding:10px 16px;border-top:1px solid #eee;background:#fafafa;color:#555;font-size:13px}
 
 .twisty{display:inline-block;width:1em;text-align:center;color:#555;cursor:pointer}
+
+/* Loading overlay */
+#loading{position:fixed;inset:0;background:rgba(255,255,255,.7);display:flex;align-items:center;justify-content:center;z-index:1000}
+#loading[hidden]{display:none}
+#loading .loader{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px 20px;box-shadow:0 2px 16px rgba(0,0,0,.08);display:flex;align-items:center;gap:12px}
+.spinner{width:18px;height:18px;border:3px solid #d1d5db;border-top-color:#2563eb;border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading .msg{font-size:14px;color:#374151}
