@@ -23,6 +23,9 @@
   const azPat = document.getElementById('azPat');
   const azUseGit = document.getElementById('azUseGit');
   const azLoadBtn = document.getElementById('azLoadBtn');
+  const settingsBtn = document.getElementById('settingsBtn');
+  const settingsPanel = document.getElementById('settingsPanel');
+  const themeSelect = document.getElementById('themeSelect');
   const loadingEl = document.getElementById('loading');
   const loadingMsgEl = loadingEl?.querySelector('.msg');
   const logEl = document.getElementById('log');
@@ -44,6 +47,33 @@
   // Prefill saved creds if available (stored only in this browser)
   try { if (azPat) azPat.value = localStorage.getItem('azdo_pat') || ''; } catch {}
   try { if (azUser) azUser.value = localStorage.getItem('azdo_user') || ''; } catch {}
+  try { if (azUrl) azUrl.value = localStorage.getItem('azdo_url') || ''; } catch {}
+  try { if (azRef) azRef.value = localStorage.getItem('azdo_ref') || ''; } catch {}
+  try { if (azUseGit) azUseGit.checked = (localStorage.getItem('azdo_use_git') || 'true') === 'true'; } catch {}
+  // Theme init
+  (function(){
+    const saved = (()=>{ try { return localStorage.getItem('theme') || 'dsharp'; } catch { return 'dsharp'; } })();
+    applyTheme(saved);
+    if (themeSelect) themeSelect.value = saved;
+  })();
+
+  // Settings toggle
+  settingsBtn?.addEventListener('click', () => {
+    if (!settingsPanel) return;
+    const visible = settingsPanel.style.display !== 'none';
+    settingsPanel.style.display = visible ? 'none' : 'block';
+  });
+
+  // Theme apply/persist
+  function applyTheme(name){
+    const t = (name || 'dsharp').toLowerCase();
+    try { document.documentElement.setAttribute('data-theme', t); } catch {}
+  }
+  themeSelect?.addEventListener('change', () => {
+    const val = themeSelect.value || 'dsharp';
+    applyTheme(val);
+    try { localStorage.setItem('theme', val); } catch {}
+  });
 
   // Simple UI logger (privacy-safe)
   function uiLog(message, data){
@@ -67,6 +97,24 @@
   function clearLog(){ if (logEl) logEl.textContent = ''; }
   logClearBtn?.addEventListener('click', clearLog);
 
+  // Progress polling for Azure DevOps load
+  let _progressTimer = null;
+  function startProgressPoll(requestId){
+    stopProgressPoll();
+    if (!requestId) return;
+    _progressTimer = setInterval(async () => {
+      try {
+        const r = await fetch('/api/azdo/progress?requestId=' + encodeURIComponent(requestId));
+        const j = await r.json().catch(()=>null);
+        if (j && typeof j.percent === 'number') {
+          const msg = j.msg && j.msg.trim() ? j.msg.trim() : 'Loading…';
+          updateLoading(msg + ' ' + j.percent + '%');
+        }
+      } catch {}
+    }, 300);
+  }
+  function stopProgressPoll(){ if (_progressTimer) { clearInterval(_progressTimer); _progressTimer = null; } }
+
   folderInput.addEventListener('change', async (e) => {
     const files = [...e.target.files];
     if (!files.length) return;
@@ -86,17 +134,37 @@
     }
   });
 
-  demoBtn.addEventListener('click', () => {
+  demoBtn.addEventListener('click', async () => {
     try{
       showLoading('Loading demo…');
-      project = buildDemoProject();
+      // Fetch demo entries from the server (DemoDW - Tutorial 10)
+      const resp = await fetch('/api/demo');
+      let data;
+      try {
+        data = await resp.json();
+      } catch {
+        // Fallback to text if server didn't return JSON
+        const text = await resp.text().catch(()=> '');
+        data = { error: text || 'Non-JSON response' };
+      }
+      if (!resp.ok) {
+        const status = resp.status;
+        const errMsg = (data && data.error) ? data.error : 'Failed to load demo project';
+        throw new Error(`${errMsg}${status? ` (HTTP ${status})` : ''}`);
+      }
+      const entries = (data && data.entries) || [];
+      updateLoading('Parsing project…');
+      project = await buildProjectFromEntries(entries);
       rootPath = '';
+      updateLoading('Rendering…');
       // Expand root level and start with no model opened
       expanded.clear();
       try { const rootModel = findRootModelPath(project.modelsByPath); expanded.add(rootModel); } catch {}
       renderTree(project);
       modelHeader.textContent = 'Select a model from the tree…';
       svg.innerHTML = '';
+    } catch(e){
+      alert('Demo load failed: ' + (e && e.message ? e.message : String(e)));
     } finally {
       hideLoading();
     }
@@ -136,23 +204,14 @@
       return null;
     }
 
-    let org = (azOrg?.value || '').trim();
-    let projectName = (azProject?.value || '').trim();
-    let repo = (azRepo?.value || '').trim();
-
-    if (url){
-      const parsed = parseAzdoRepoUrl(url);
-      if (!parsed){
-        alert('Could not parse Azure DevOps repo URL. Expected format: https://dev.azure.com/{Org}/{Project}/_git/{Repo}');
-        return;
-      }
-      org = parsed.org; projectName = parsed.project; repo = parsed.repo;
-    }
-
-    if(!org || !projectName || !repo){
-      alert('Please provide a valid Repo URL or fill Org, Project, and Repository');
+    const parsed = parseAzdoRepoUrl(url);
+    if (!parsed){
+      alert('Please paste a valid Azure DevOps Repo URL. Expected format: https://dev.azure.com/{Org}/{Project}/_git/{Repo}');
       return;
     }
+    const org = parsed.org;
+    const projectName = parsed.project;
+    const repo = parsed.repo;
     if(!pat){
       alert('Missing PAT. Enter Username and PAT (stored locally) and try again.');
       return;
@@ -173,6 +232,8 @@
     try{
       showLoading('Fetching from Azure DevOps…');
       const params = new URLSearchParams({ org, project: projectName, repo });
+      const cid = 'job-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,8);
+      params.set('cid', cid);
       if(ref) params.set('ref', ref);
       if (azUseGit?.checked) params.set('method', 'git');
       const headers = {};
@@ -185,6 +246,7 @@
       const requestUrl = '/api/azdo/items?' + params.toString();
       console.log('Request', { url: requestUrl, headers: Object.keys(headers) });
       uiLog('[AZDO] Request', { url: requestUrl, headers: Object.keys(headers) });
+      startProgressPoll(cid);
       const resp = await fetch(requestUrl, { headers });
       const data = await resp.json().catch(() => ({}));
       const requestId = (resp.headers && resp.headers.get && resp.headers.get('X-Request-Id')) || data.requestId || undefined;
@@ -215,9 +277,12 @@
         ex.requestId = requestId;
         throw ex;
       }
-      // Store creds locally on success (optional; can be cleared by user via browser tools)
-      if(pat) try { localStorage.setItem('azdo_pat', pat); } catch {}
-      if(username) try { localStorage.setItem('azdo_user', username); } catch {}
+      // Store settings locally on success (optional; can be cleared by user via browser tools)
+      try { if (pat) localStorage.setItem('azdo_pat', pat); } catch {}
+      try { if (username) localStorage.setItem('azdo_user', username); } catch {}
+      try { if (url) localStorage.setItem('azdo_url', url); } catch {}
+      try { if (ref) localStorage.setItem('azdo_ref', ref); } catch {}
+      try { if (azUseGit) localStorage.setItem('azdo_use_git', azUseGit.checked ? 'true' : 'false'); } catch {}
       updateLoading('Parsing project…');
       project = await buildProjectFromEntries(entries);
       updateLoading('Rendering…');
@@ -234,6 +299,7 @@
       alert('Azure DevOps load failed: ' + (e && e.message ? e.message : String(e)) + rid);
     } finally {
       console.groupEnd?.();
+      stopProgressPoll();
       hideLoading();
     }
   });
@@ -260,7 +326,10 @@
       const text = await f.text();
       entries.push({ path: f.webkitRelativePath, text });
       i++;
-      if (i % 25 === 0) updateLoading(`Reading files… ${i}/${files.length}`);
+      if (i % 1 === 0) {
+        const pct = Math.floor((i / files.length) * 100);
+        updateLoading(`Reading files… ${pct}%`);
+      }
     }
     return buildProjectFromEntries(entries);
   }
@@ -1396,7 +1465,7 @@
       });
       const label = createSVG('text', { x: n.x + 12, y: n.y + 24, class: 'class-label' });
       label.textContent = n.name;
-      const sub = createSVG('text', { x: n.x + 12, y: n.y + 44, class: 'class-label', fill: '#555' });
+      const sub = createSVG('text', { x: n.x + 12, y: n.y + 44, class: 'class-label', fill: '#000' });
       sub.textContent = n._visiting ? `(from ${n.homeModelPath||'Root'})` : '';
 
       g.appendChild(rect);
@@ -1422,7 +1491,7 @@
         if (!expSet.has(n.id) || list.length === 0) return;
         const startY = n.y + 64; // below subtitle
         list.forEach((a, i) => {
-          const t = createSVG('text', { x: n.x + 12, y: startY + i*16, class: 'class-label', fill: '#222' });
+          const t = createSVG('text', { x: n.x + 12, y: startY + i*16, class: 'class-label', fill: '#000' });
           t.textContent = `${a.name}${a.datatype? ': '+a.datatype:''}`;
           attrsGroup.appendChild(t);
         });

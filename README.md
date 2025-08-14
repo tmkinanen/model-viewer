@@ -32,7 +32,7 @@ Steps:
 
 ## Loading a project
 
-You have two options:
+You have two options (plus a built-in demo):
 
 Note: After loading, no model is opened automatically. The Root level in the tree is expanded so you can see the first level of models; click a model to open its diagram.
 
@@ -43,26 +43,31 @@ Note: After loading, no model is opened automatically. The Root level in the tre
   - or JSON class files under classes/*.json with { id, name, refs }
 
 2) Load from Azure DevOps Git
-- Simplest: Paste your Repo URL, enter Username and PAT. The app parses org/project/repo from the URL and authenticates with Basic auth built from username:PAT. The PAT is stored only in your browser (localStorage) and sent per request.
-- Optional: You can still fill Org/Project/Repo directly if you prefer or if the URL parsing fails.
-- Fast mode: Use local clone (checkbox on by default). The server will perform a shallow git clone to a temporary folder and read JSON files from disk. This is much faster for large repos than fetching each file via REST.
-- Fields:
+- Simplest: Paste your Repo URL, enter Username and PAT in Settings. The app parses org/project/repo from the URL and authenticates with Basic auth built from username:PAT. The PAT is stored only in your browser (localStorage) and sent per request.
+- Fast mode: Use local clone (checkbox in Settings, on by default). The server will perform a shallow git clone to a temporary folder and read JSON files from disk. This is much faster for large repos than fetching each file via REST.
+- Fields (in Settings):
   - Repo URL: e.g., https://dev.azure.com/Org/Project/_git/Repo
   - Username: your Azure DevOps username (any non-empty value works; it’s combined with the PAT)
   - PAT: your Azure DevOps PAT (scope: Code Read)
   - Branch (optional): defaults to main; you can also use refs/heads/branchName.
   - Use local clone (faster): enabled by default. Requires git on the server PATH.
-- Click “Load from DevOps”. The server loads files either via a fast local clone or via the Azure DevOps REST API (fallback).
+- Click “Load from DevOps” on the front page. The server loads files either via a fast local clone or via the Azure DevOps REST API (fallback).
 
 Notes:
 - Credentials are user-specific and provided in the browser; the server proxies the request using your per-request PAT and does not store it.
-- Fast mode (local clone) requires git installed on the server PATH. The server clones to a temporary directory and deletes it after reading files. Secrets are never logged; remote URLs are redacted in logs.
 - Endpoint used: GET /api/azdo/items?org=...&project=...&repo=...&ref=... with optional header X-AZDO-PAT (raw PAT) or X-AZDO-Auth (e.g., "Basic base64").
+
+Themes:
+- Open Settings and choose Theme (DSharp, Light, or Dark). The selection is stored locally and applied immediately.
+- You can switch themes anytime; the UI colors, header, and inputs adapt accordingly.
+
+Demo project:
+- Click “Load Demo Project” to load the included data_example/DemoDW - Tutorial 10 dataset. It uses the DSharp _Content format and demonstrates the viewer’s parsing and rendering.
 
 Examples:
 - Given Azure DevOps repo URL:
   https://dev.azure.com/DSharpFi/Metsa/_git/Metsa
-  - Paste the URL, enter Username (e.g., DSharpFi) and your PAT, click Load.
+  - Open Settings, paste the URL, enter Username (e.g., DSharpFi) and your PAT, close Settings, click Load from DevOps.
   - Under the hood, the app will call: /api/azdo/items?org=DSharpFi&project=Metsa&repo=Metsa with header X-AZDO-Auth: Basic base64(username:PAT) and method=git when "Use local clone" is enabled.
 - curl example using X-AZDO-Auth (username:PAT) with fast local clone:
   USERNAME="DSharpFi"; PAT="YOUR_PAT"; TOKEN=$(printf "%s:%s" "$USERNAME" "$PAT" | base64)
