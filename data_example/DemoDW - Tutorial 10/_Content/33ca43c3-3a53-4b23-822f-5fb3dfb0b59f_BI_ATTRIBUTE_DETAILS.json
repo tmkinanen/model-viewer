@@ -1,0 +1,20 @@
+{
+  "StringLength": 50,
+  "NumericPrecision": 2,
+  "Scale": 2,
+  "RateOfChange": "Never",
+  "Group": "",
+  "SourcePriority": [],
+  "SchemaVersion": "1.0",
+  "MementoClassname": "BIAttributeDetailsMemento",
+  "Id": "33ca43c3-3a53-4b23-822f-5fb3dfb0b59f_BI_ATTRIBUTE_DETAILS",
+  "ExternalId": null,
+  "TypeName": "BI attribute details",
+  "Name": "",
+  "Description": null,
+  "ParentTypeName": "Attribute",
+  "ParentId": "33ca43c3-3a53-4b23-822f-5fb3dfb0b59f",
+  "CreationMethod": "Undefined",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

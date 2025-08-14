@@ -1,0 +1,20 @@
+{
+  "Visibility": "Public",
+  "IsDerived": false,
+  "Multiplicity": "0..1",
+  "DatatypeTypeName": "Attribute datatype",
+  "DatatypeId": "Attribute datatype.date",
+  "PreferredPosition": 1,
+  "SchemaVersion": "1.0",
+  "MementoClassname": "ElementAttributeMemento",
+  "Id": "ae4add1a-cb48-42e8-b5b6-dc9c74d812c0",
+  "ExternalId": null,
+  "TypeName": "Attribute",
+  "Name": "Paid on",
+  "Description": null,
+  "ParentTypeName": "Class",
+  "ParentId": "3b0dc7b7-c1ad-4f35-9b72-eebc7637a407",
+  "CreationMethod": "UserCreated",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

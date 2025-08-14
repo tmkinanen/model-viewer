@@ -1,0 +1,37 @@
+{
+  "KeyType": "No key",
+  "MayNotBeValid": false,
+  "KeyElementIds": [
+    "ae4add1a-cb48-42e8-b5b6-dc9c74d812c0",
+    "2ddd0282-836f-427e-a81b-d768c9975dbc",
+    "e884dfde-eeb4-4ed3-bb61-280cd714ebbd",
+    "d1103c4d-1ae7-459f-8c02-cc9a5aa42c38",
+    "5b551441-b874-48a1-a474-effd20bd1662"
+  ],
+  "ApprovedKeyElementNames": [
+    "Paid on",
+    "Amount",
+    "Salary component",
+    "Employee",
+    "Cost center"
+  ],
+  "ApprovedKeyElementIds": [
+    "ae4add1a-cb48-42e8-b5b6-dc9c74d812c0",
+    "2ddd0282-836f-427e-a81b-d768c9975dbc",
+    "e884dfde-eeb4-4ed3-bb61-280cd714ebbd",
+    "d1103c4d-1ae7-459f-8c02-cc9a5aa42c38",
+    "5b551441-b874-48a1-a474-effd20bd1662"
+  ],
+  "SchemaVersion": "1.0",
+  "MementoClassname": "KeyDefinitionMemento",
+  "Id": "3b0dc7b7-c1ad-4f35-9b72-eebc7637a407_KEY_DEFINITION",
+  "ExternalId": null,
+  "TypeName": "Key definition",
+  "Name": "Hash calculation definition",
+  "Description": null,
+  "ParentTypeName": "Class",
+  "ParentId": "3b0dc7b7-c1ad-4f35-9b72-eebc7637a407",
+  "CreationMethod": "Undefined",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

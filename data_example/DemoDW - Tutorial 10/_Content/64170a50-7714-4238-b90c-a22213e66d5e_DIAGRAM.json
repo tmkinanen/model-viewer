@@ -1,0 +1,15 @@
+{
+  "DiagramType": "ModelEditor",
+  "SchemaVersion": "1.0",
+  "MementoClassname": "DiagramMemento",
+  "Id": "64170a50-7714-4238-b90c-a22213e66d5e_DIAGRAM",
+  "ExternalId": null,
+  "TypeName": "Diagram",
+  "Name": "Human resources",
+  "Description": null,
+  "ParentTypeName": "Submodel",
+  "ParentId": "64170a50-7714-4238-b90c-a22213e66d5e",
+  "CreationMethod": "Undefined",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

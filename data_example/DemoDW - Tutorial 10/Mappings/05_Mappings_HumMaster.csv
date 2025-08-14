@@ -1,0 +1,19 @@
+SourceSystems;Table;Column;InPrimaryKey;References;Skip;Class;Property;Group;AlreadyHashed;VersionColumnIndex;InLogicalKey;Transformation;ColumnSize
+HumMaster;RAW_EMPLOYEE;E_ID;x;;;;;;;;;;
+HumMaster;RAW_EMPLOYEE;EMPLOYEE_NUMBER;;;;Employee;Employee number;;;;;;
+HumMaster;RAW_EMPLOYEE;PERSON_ID;;;;Employee;Person;;;;;;
+;;;;;;;;;;;;;
+Alias=Person;;;;;;;;;;;;;
+HumMaster;RAW_EMPLOYEE;PERSON_ID;;;;Person;Person Id;;;;;;
+HumMaster;RAW_EMPLOYEE;LASTNAME;;;;Person;Last name;;;;;;
+HumMaster;RAW_EMPLOYEE;FIRSTNAMES;;;;Person;First names;;;;;;
+HumMaster;RAW_EMPLOYEE;BIRTHDATE;;;;Person;Date of birth;;;;;;
+;;;;;;;;;;;;;
+HumMaster;RAW_Salary_Component;C_ID;x;;;Salary component;Code;;;;;;
+HumMaster;RAW_Salary_Component;NAME;;;;Salary component;Name;;;;;;
+;;;;;;;;;;;;;
+HumMaster;RAW_Salary_Payment_Part;PDATE;;;;Salary payment part;Paid on;;;;;;
+HumMaster;RAW_Salary_Payment_Part;EMPLOYEE_ID;;RAW_EMPLOYEE.E_ID;;Salary payment part;Employee;;;;;;
+HumMaster;RAW_Salary_Payment_Part;COST_CENTER_ID;;FinMaster.RAW_CostCenter.CODE;;Salary payment part;Cost center;;;;;;
+HumMaster;RAW_Salary_Payment_Part;AMOUNT;;;;Salary payment part;Amount;;;;;;
+HumMaster;RAW_Salary_Payment_Part;COMPONENT_ID;;RAW_Salary_Component.C_ID;;Salary payment part;Salary component;;;;;;

@@ -1,0 +1,25 @@
+{
+  "KeyType": "Business key",
+  "MayNotBeValid": false,
+  "KeyElementIds": [
+    "db8e385b-a91d-4437-8b2d-d2efe33f4943"
+  ],
+  "ApprovedKeyElementNames": [
+    "Code"
+  ],
+  "ApprovedKeyElementIds": [
+    "db8e385b-a91d-4437-8b2d-d2efe33f4943"
+  ],
+  "SchemaVersion": "1.0",
+  "MementoClassname": "KeyDefinitionMemento",
+  "Id": "49bc9d6d-79c7-4313-807a-5ee7db31bc52_KEY_DEFINITION",
+  "ExternalId": null,
+  "TypeName": "Key definition",
+  "Name": "Business key definition",
+  "Description": null,
+  "ParentTypeName": "Class",
+  "ParentId": "49bc9d6d-79c7-4313-807a-5ee7db31bc52",
+  "CreationMethod": "Undefined",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

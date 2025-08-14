@@ -1,0 +1,17 @@
+SourceSystems;Table;Column;InPrimaryKey;References;Skip;Class;Property;Group;AlreadyHashed;VersionColumnIndex;InLogicalKey;Transformation;ColumnSize
+PersMaster;RAW_PERSON;ID;x;;;;;;;;;;
+PersMaster;RAW_PERSON;PERSON_ID;;;;Person;Person Id;;;;;;
+PersMaster;RAW_PERSON;LAST_NAME;;;;Person;Last name;;;;;;
+PersMaster;RAW_PERSON;FIRST_NAMES;;;;Person;First names;;;;;;
+PersMaster;RAW_PERSON;NICKNAME;;;;Person;Nickname;;;;;;
+PersMaster;RAW_PERSON;DATE_OF_BIRTH;;;;Person;Date of birth;;;;;;
+PersMaster;RAW_PERSON;GENDER_ID;;RAW_GENDER.GENDER_ID;;Person;Gender;;;;;;
+;;;;;;;;;;;;;
+PersMaster;RAW_GENDER;GENDER_ID;x;;;Gender;Code;;;;;;
+PersMaster;RAW_GENDER;NAME;;;;Gender;Name;;;;;;
+;;;;;;;;;;;;;
+PersMaster;RAW_PERSON_PHONENUMBERS;P_ID;;RAW_PERSON.ID;;Person's phone number;Person;;;;;;
+PersMaster;RAW_PERSON_PHONENUMBERS;PHONENUMBER;;;;Person's phone number;Phone number;;;;;;
+;;;;;;;;;;;;;
+PersMaster;RAW_PERSON_EMAILS;P_ID;;RAW_PERSON.ID;;Person's email address;Person;;;;;;
+PersMaster;RAW_PERSON_EMAILS;EMAIL;;;;Person's email address;email;;;;;;

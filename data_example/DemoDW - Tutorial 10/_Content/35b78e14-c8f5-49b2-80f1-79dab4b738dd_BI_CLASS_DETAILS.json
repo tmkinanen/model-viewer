@@ -1,0 +1,22 @@
+﻿{
+  "PublishingFormat": "View",
+  "AutomationLevel": "Undefined",
+  "StateTrackingMethod": "None",
+  "KeyConsolidation": "None",
+  "MaterializationMethod": "Automatic",
+  "NamingMasterTypename": null,
+  "NamingMasterId": null,
+  "SourcePriority": [],
+  "SchemaVersion": "1.1",
+  "MementoClassname": "BIClassDetailsMemento",
+  "Id": "35b78e14-c8f5-49b2-80f1-79dab4b738dd_BI_CLASS_DETAILS",
+  "ExternalId": null,
+  "TypeName": "BI class details",
+  "Name": "",
+  "Description": null,
+  "ParentTypeName": "Class",
+  "ParentId": "35b78e14-c8f5-49b2-80f1-79dab4b738dd",
+  "CreationMethod": "Undefined",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

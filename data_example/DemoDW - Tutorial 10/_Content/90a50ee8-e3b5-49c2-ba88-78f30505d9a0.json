@@ -1,0 +1,17 @@
+{
+  "IsDerived": false,
+  "IsAbstract": false,
+  "IsMetaClass": false,
+  "SchemaVersion": "1.0",
+  "MementoClassname": "ClassMemento",
+  "Id": "90a50ee8-e3b5-49c2-ba88-78f30505d9a0",
+  "ExternalId": null,
+  "TypeName": "Class",
+  "Name": "Salary component",
+  "Description": null,
+  "ParentTypeName": "Submodel",
+  "ParentId": "64170a50-7714-4238-b90c-a22213e66d5e",
+  "CreationMethod": "UserCreated",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

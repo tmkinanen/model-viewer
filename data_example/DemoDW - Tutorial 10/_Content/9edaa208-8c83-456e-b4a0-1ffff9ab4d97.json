@@ -1,0 +1,20 @@
+{
+  "Visibility": "Public",
+  "IsDerived": false,
+  "Multiplicity": "0..1",
+  "DatatypeTypeName": "Attribute datatype",
+  "DatatypeId": "Attribute datatype.firstnames",
+  "PreferredPosition": 2,
+  "SchemaVersion": "1.0",
+  "MementoClassname": "ElementAttributeMemento",
+  "Id": "9edaa208-8c83-456e-b4a0-1ffff9ab4d97",
+  "ExternalId": null,
+  "TypeName": "Attribute",
+  "Name": "First names",
+  "Description": null,
+  "ParentTypeName": "Class",
+  "ParentId": "0c92d040-a967-4ec2-b32b-70d76004f54b",
+  "CreationMethod": "UserCreated",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

@@ -1,0 +1,34 @@
+{
+  "KeyType": "Non-Business key",
+  "MayNotBeValid": false,
+  "KeyElementIds": [
+    "a1e41c67-a75f-46b3-b9ce-f409df45d427",
+    "5f826b27-dd48-447e-93a4-8964d1d87f86",
+    "524e169a-0c02-4d93-bc51-216e9b86cddd",
+    "8f47ef07-1e17-4eae-9f26-cf1e6f8aa943"
+  ],
+  "ApprovedKeyElementNames": [
+    "Fiscal year",
+    "Voucher number",
+    "Voucher row number",
+    "Cost center"
+  ],
+  "ApprovedKeyElementIds": [
+    "a1e41c67-a75f-46b3-b9ce-f409df45d427",
+    "5f826b27-dd48-447e-93a4-8964d1d87f86",
+    "524e169a-0c02-4d93-bc51-216e9b86cddd",
+    "8f47ef07-1e17-4eae-9f26-cf1e6f8aa943"
+  ],
+  "SchemaVersion": "1.0",
+  "MementoClassname": "KeyDefinitionMemento",
+  "Id": "97e86a9d-909b-467d-8006-237709dcd007_KEY_DEFINITION",
+  "ExternalId": null,
+  "TypeName": "Key definition",
+  "Name": "Key definition",
+  "Description": null,
+  "ParentTypeName": "Class",
+  "ParentId": "97e86a9d-909b-467d-8006-237709dcd007",
+  "CreationMethod": "Undefined",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

@@ -1,0 +1,17 @@
+﻿"SourceSystems";"Table";"Column";"InPrimaryKey";"References";"Skip";"Class";"Property";"Group";"AlreadyHashed";"VersionColumnIndex";"InLogicalKey";"Transformation";"ColumnSize"
+FinMaster;RAW_ACCOUNT;CODE;x;;;Account;Account number;;;;;;
+FinMaster;RAW_ACCOUNT;NAME;;;;Account;Name;;;;;;
+
+FinMaster;RAW_COSTCENTER;CODE;x;;;Cost center;Code;;;;;!Strip leading zeros;
+FinMaster;RAW_COSTCENTER;NAME;;;;Cost center;Name;;;;;;
+FinMaster;RAW_COSTCENTER;ORGUNIT;;OrgMaster.RAW_ORGANIZATIONUNIT.ORG_ID;;Cost center;Organization unit;;;;;;
+
+where not exists (select 1 from dwStorage.lnk_AccountingEntry where lnk_AccountingEntry_hash = dwETL.CalculateHash(concat(try_cast(data.YEAR as int), '.', ltrim(rtrim(data.VNUMBER)), '.', try_cast(data.RNUMBER as int), '.', ltrim(rtrim(data.COSTCENTER)))));;;;;;;;;;;;;
+FinMaster;RAW_ACCOUNTINGENTRY;YEAR;x;;;Accounting entry;Fiscal year;;;;;;
+FinMaster;RAW_ACCOUNTINGENTRY;VNUMBER;x;;;Accounting entry;Voucher number;;;;;;
+FinMaster;RAW_ACCOUNTINGENTRY;RNUMBER;x;;;Accounting entry;Voucher row number;;;;;;
+FinMaster;RAW_ACCOUNTINGENTRY;ENTRYDATE;;;;Accounting entry;Entry date;;;;;;
+FinMaster;RAW_ACCOUNTINGENTRY;DEBETCREDIT;;;;Accounting entry;Debet or Credit;;;;;;
+FinMaster;RAW_ACCOUNTINGENTRY;AMOUNT;;;;Accounting entry;Amount;;;;;;
+FinMaster;RAW_ACCOUNTINGENTRY;ACCOUNTNR;;RAW_ACCOUNT.CODE;;Accounting entry;Account;;;;;;
+FinMaster;RAW_ACCOUNTINGENTRY;COSTCENTER;;RAW_COSTCENTER.CODE;;Accounting entry;Cost center;;;;;;

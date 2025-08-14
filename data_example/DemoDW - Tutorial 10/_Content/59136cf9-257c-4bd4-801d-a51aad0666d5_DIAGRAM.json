@@ -1,0 +1,15 @@
+{
+  "DiagramType": "ModelEditor",
+  "SchemaVersion": "1.0",
+  "MementoClassname": "DiagramMemento",
+  "Id": "59136cf9-257c-4bd4-801d-a51aad0666d5_DIAGRAM",
+  "ExternalId": null,
+  "TypeName": "Diagram",
+  "Name": "Finance",
+  "Description": null,
+  "ParentTypeName": "Submodel",
+  "ParentId": "59136cf9-257c-4bd4-801d-a51aad0666d5",
+  "CreationMethod": "Undefined",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

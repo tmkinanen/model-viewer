@@ -1,0 +1,20 @@
+{
+  "Visibility": "Public",
+  "IsDerived": false,
+  "Multiplicity": "0..1",
+  "DatatypeTypeName": "Attribute datatype",
+  "DatatypeId": "Attribute datatype.char",
+  "PreferredPosition": 6,
+  "SchemaVersion": "1.0",
+  "MementoClassname": "ElementAttributeMemento",
+  "Id": "760b781e-f03e-4550-8c59-43f0feaa74c4",
+  "ExternalId": null,
+  "TypeName": "Attribute",
+  "Name": "Debet or Credit",
+  "Description": null,
+  "ParentTypeName": "Class",
+  "ParentId": "97e86a9d-909b-467d-8006-237709dcd007",
+  "CreationMethod": "UserCreated",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

@@ -1,0 +1,14 @@
+﻿{
+  "SchemaVersion": "1.1",
+  "MementoClassname": "ElementMemento",
+  "Id": "615ff5c7-ff76-4bb5-8f15-dd0b181dfbbc",
+  "ExternalId": null,
+  "TypeName": "Submodel",
+  "Name": "Project management",
+  "Description": null,
+  "ParentTypeName": "Submodel",
+  "ParentId": "4ffb04e3-a044-4bdd-b45e-58a8af3cda3e",
+  "CreationMethod": "UserCreated",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

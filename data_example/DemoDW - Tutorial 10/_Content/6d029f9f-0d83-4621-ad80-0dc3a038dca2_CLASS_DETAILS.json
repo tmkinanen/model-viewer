@@ -1,0 +1,18 @@
+{
+  "IsTransaction": false,
+  "Archetype": "Description",
+  "Volume": "Medium",
+  "Visibility": "Public",
+  "SchemaVersion": "1.0",
+  "MementoClassname": "ClassDetailsMemento",
+  "Id": "6d029f9f-0d83-4621-ad80-0dc3a038dca2_CLASS_DETAILS",
+  "ExternalId": null,
+  "TypeName": "Class details",
+  "Name": "",
+  "Description": null,
+  "ParentTypeName": "Class",
+  "ParentId": "6d029f9f-0d83-4621-ad80-0dc3a038dca2",
+  "CreationMethod": "Undefined",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

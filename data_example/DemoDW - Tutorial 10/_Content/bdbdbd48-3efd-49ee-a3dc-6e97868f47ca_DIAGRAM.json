@@ -1,0 +1,15 @@
+{
+  "DiagramType": "ModelEditor",
+  "SchemaVersion": "1.0",
+  "MementoClassname": "DiagramMemento",
+  "Id": "bdbdbd48-3efd-49ee-a3dc-6e97868f47ca_DIAGRAM",
+  "ExternalId": null,
+  "TypeName": "Diagram",
+  "Name": "Organization",
+  "Description": null,
+  "ParentTypeName": "Submodel",
+  "ParentId": "bdbdbd48-3efd-49ee-a3dc-6e97868f47ca",
+  "CreationMethod": "Undefined",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

@@ -1,0 +1,17 @@
+{
+  "IsDerived": false,
+  "IsAbstract": false,
+  "IsMetaClass": false,
+  "SchemaVersion": "1.0",
+  "MementoClassname": "ClassMemento",
+  "Id": "49bc9d6d-79c7-4313-807a-5ee7db31bc52",
+  "ExternalId": null,
+  "TypeName": "Class",
+  "Name": "Cost center",
+  "Description": null,
+  "ParentTypeName": "Submodel",
+  "ParentId": "59136cf9-257c-4bd4-801d-a51aad0666d5",
+  "CreationMethod": "UserCreated",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

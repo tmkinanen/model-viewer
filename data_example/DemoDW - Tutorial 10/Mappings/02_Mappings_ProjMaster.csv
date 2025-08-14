@@ -1,0 +1,21 @@
+SourceSystems;Table;Column;InPrimaryKey;References;Skip;Class;Property;Group;AlreadyHashed;VersionColumnIndex;InLogicalKey;Transformation;ColumnSize
+ProjMaster;RAW_PERSON;ID;x;;;;;;;;;;
+ProjMaster;RAW_PERSON;PERSONID;;;;Person;Person Id;;;;;;
+ProjMaster;RAW_PERSON;LASTNAME;;;;Person;Last name;;;;;;
+ProjMaster;RAW_PERSON;FIRSTNAMES;;;;Person;First names;;;;;;
+ProjMaster;RAW_PERSON;DATEOFBIRTH;;;;Person;Date of birth;;;;;;
+;;;;;;;;;;;;;
+ProjMaster;RAW_PROJECT_ROLE;ROLE_ID;x;;;Person's role in project;Code;;;;;;
+ProjMaster;RAW_PROJECT_ROLE;ROLE_NAME;;;;Person's role in project;Name;;;;;;
+;;;;;;;;;;;;;
+ProjMaster;RAW_PROJECT;ID;x;;;;;;;;;;
+ProjMaster;RAW_PROJECT;PROJECT_ID;;;;Project;Project number;;;;;;
+ProjMaster;RAW_PROJECT;NAME;;;;Project;Name;;;;;;
+ProjMaster;RAW_PROJECT;STARTDATE;;;;Project;Start date;;;;;;
+ProjMaster;RAW_PROJECT;ENDDATE;;;;Project;End date;;;;;;
+;;;;;;;;;;;;;
+ProjMaster;RAW_PERSON_PROJECT;PROJECT_ID;x;RAW_PROJECT.ID;;Project membership;Project;;;;;;
+ProjMaster;RAW_PERSON_PROJECT;PERSON_ID;x;RAW_PERSON.ID;;Project membership;Person;;;;;;
+ProjMaster;RAW_PERSON_PROJECT;PERSON_ROLE_ID;x;RAW_PROJECT_ROLE.ROLE_ID;;Project membership;Role;;;;;;
+ProjMaster;RAW_PERSON_PROJECT;STARTDATE;x;;;Project membership;Start date;;;;;;
+ProjMaster;RAW_PERSON_PROJECT;ENDDATE;;;;Project membership;End date;;;;;;

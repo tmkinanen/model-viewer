@@ -1,0 +1,15 @@
+{
+  "Target": null,
+  "SchemaVersion": "1.0",
+  "MementoClassname": "ConceptualModelMemento",
+  "Id": "SYSTEM_CONCEPTUALMODEL",
+  "ExternalId": null,
+  "TypeName": "Conceptual model",
+  "Name": "Conceptual model",
+  "Description": null,
+  "ParentTypeName": "Project",
+  "ParentId": "SYSTEM_PROJECT",
+  "CreationMethod": "SystemCreated",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

@@ -1,0 +1,34 @@
+{
+  "KeyType": "Non-Business key",
+  "MayNotBeValid": false,
+  "KeyElementIds": [
+    "18dd2de4-cd92-4db1-bf14-dababcdf78e3",
+    "8bf5587d-ed2f-4a96-8e40-ff939da9e4a8",
+    "8d3b73c3-9452-4fab-a6cb-dd141547153b",
+    "2d0cab85-eba4-47ce-9c33-01d5fec109ba"
+  ],
+  "ApprovedKeyElementNames": [
+    "Person",
+    "Project",
+    "Person's role in project",
+    "Start date"
+  ],
+  "ApprovedKeyElementIds": [
+    "18dd2de4-cd92-4db1-bf14-dababcdf78e3",
+    "8bf5587d-ed2f-4a96-8e40-ff939da9e4a8",
+    "8d3b73c3-9452-4fab-a6cb-dd141547153b",
+    "2d0cab85-eba4-47ce-9c33-01d5fec109ba"
+  ],
+  "SchemaVersion": "1.0",
+  "MementoClassname": "KeyDefinitionMemento",
+  "Id": "bddcb368-b159-4fa8-8700-c1ac8cb1e986_KEY_DEFINITION",
+  "ExternalId": null,
+  "TypeName": "Key definition",
+  "Name": "Key definition",
+  "Description": null,
+  "ParentTypeName": "Class",
+  "ParentId": "bddcb368-b159-4fa8-8700-c1ac8cb1e986",
+  "CreationMethod": "Undefined",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

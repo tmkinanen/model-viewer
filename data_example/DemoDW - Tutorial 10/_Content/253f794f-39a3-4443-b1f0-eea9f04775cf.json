@@ -1,0 +1,20 @@
+{
+  "Visibility": "Public",
+  "IsDerived": false,
+  "Multiplicity": "0..1",
+  "DatatypeTypeName": "Attribute datatype",
+  "DatatypeId": "Attribute datatype.phone",
+  "PreferredPosition": 1,
+  "SchemaVersion": "1.0",
+  "MementoClassname": "ElementAttributeMemento",
+  "Id": "253f794f-39a3-4443-b1f0-eea9f04775cf",
+  "ExternalId": null,
+  "TypeName": "Attribute",
+  "Name": "Phone number",
+  "Description": null,
+  "ParentTypeName": "Class",
+  "ParentId": "eee7d55f-12c9-4f4e-9956-5647b3756a44",
+  "CreationMethod": "UserCreated",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

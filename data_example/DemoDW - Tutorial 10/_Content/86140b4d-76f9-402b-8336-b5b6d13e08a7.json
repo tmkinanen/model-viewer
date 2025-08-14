@@ -1,0 +1,14 @@
+﻿{
+  "SchemaVersion": "1.1",
+  "MementoClassname": "ElementMemento",
+  "Id": "86140b4d-76f9-402b-8336-b5b6d13e08a7",
+  "ExternalId": null,
+  "TypeName": "Submodel",
+  "Name": "Person",
+  "Description": null,
+  "ParentTypeName": "Submodel",
+  "ParentId": "4ffb04e3-a044-4bdd-b45e-58a8af3cda3e",
+  "CreationMethod": "UserCreated",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

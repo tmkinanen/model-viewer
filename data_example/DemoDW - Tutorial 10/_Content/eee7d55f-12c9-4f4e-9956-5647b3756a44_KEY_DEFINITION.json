@@ -1,0 +1,28 @@
+{
+  "KeyType": "Non-Business key",
+  "MayNotBeValid": false,
+  "KeyElementIds": [
+    "253f794f-39a3-4443-b1f0-eea9f04775cf",
+    "66cc9c9c-49f7-4ad0-bee0-773c1afcda52"
+  ],
+  "ApprovedKeyElementNames": [
+    "Phone number",
+    "Person"
+  ],
+  "ApprovedKeyElementIds": [
+    "253f794f-39a3-4443-b1f0-eea9f04775cf",
+    "66cc9c9c-49f7-4ad0-bee0-773c1afcda52"
+  ],
+  "SchemaVersion": "1.0",
+  "MementoClassname": "KeyDefinitionMemento",
+  "Id": "eee7d55f-12c9-4f4e-9956-5647b3756a44_KEY_DEFINITION",
+  "ExternalId": null,
+  "TypeName": "Key definition",
+  "Name": "Key definition",
+  "Description": null,
+  "ParentTypeName": "Class",
+  "ParentId": "eee7d55f-12c9-4f4e-9956-5647b3756a44",
+  "CreationMethod": "Undefined",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

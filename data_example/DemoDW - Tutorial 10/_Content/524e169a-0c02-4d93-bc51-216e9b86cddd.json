@@ -1,0 +1,20 @@
+{
+  "Visibility": "Public",
+  "IsDerived": false,
+  "Multiplicity": "0..1",
+  "DatatypeTypeName": "Attribute datatype",
+  "DatatypeId": "Attribute datatype.int",
+  "PreferredPosition": 5,
+  "SchemaVersion": "1.0",
+  "MementoClassname": "ElementAttributeMemento",
+  "Id": "524e169a-0c02-4d93-bc51-216e9b86cddd",
+  "ExternalId": null,
+  "TypeName": "Attribute",
+  "Name": "Voucher row number",
+  "Description": null,
+  "ParentTypeName": "Class",
+  "ParentId": "97e86a9d-909b-467d-8006-237709dcd007",
+  "CreationMethod": "UserCreated",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

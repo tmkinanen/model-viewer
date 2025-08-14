@@ -1,0 +1,17 @@
+{
+  "IsDerived": false,
+  "IsAbstract": false,
+  "IsMetaClass": false,
+  "SchemaVersion": "1.0",
+  "MementoClassname": "ClassMemento",
+  "Id": "eee7d55f-12c9-4f4e-9956-5647b3756a44",
+  "ExternalId": null,
+  "TypeName": "Class",
+  "Name": "Person's phone number",
+  "Description": null,
+  "ParentTypeName": "Submodel",
+  "ParentId": "86140b4d-76f9-402b-8336-b5b6d13e08a7",
+  "CreationMethod": "UserCreated",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

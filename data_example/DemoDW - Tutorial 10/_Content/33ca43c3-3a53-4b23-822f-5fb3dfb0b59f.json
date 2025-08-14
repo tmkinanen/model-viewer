@@ -1,0 +1,20 @@
+{
+  "Visibility": "Public",
+  "IsDerived": false,
+  "Multiplicity": "0..1",
+  "DatatypeTypeName": "Attribute datatype",
+  "DatatypeId": "Attribute datatype.email",
+  "PreferredPosition": 1,
+  "SchemaVersion": "1.0",
+  "MementoClassname": "ElementAttributeMemento",
+  "Id": "33ca43c3-3a53-4b23-822f-5fb3dfb0b59f",
+  "ExternalId": null,
+  "TypeName": "Attribute",
+  "Name": "email",
+  "Description": null,
+  "ParentTypeName": "Class",
+  "ParentId": "e679e75d-753c-4c55-a2d8-fc51b9424863",
+  "CreationMethod": "UserCreated",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

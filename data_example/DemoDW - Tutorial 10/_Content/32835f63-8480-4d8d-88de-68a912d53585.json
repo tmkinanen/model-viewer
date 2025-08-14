@@ -1,0 +1,17 @@
+{
+  "IsDerived": false,
+  "IsAbstract": false,
+  "IsMetaClass": false,
+  "SchemaVersion": "1.0",
+  "MementoClassname": "ClassMemento",
+  "Id": "32835f63-8480-4d8d-88de-68a912d53585",
+  "ExternalId": null,
+  "TypeName": "Class",
+  "Name": "Organization",
+  "Description": null,
+  "ParentTypeName": "Submodel",
+  "ParentId": "bdbdbd48-3efd-49ee-a3dc-6e97868f47ca",
+  "CreationMethod": "UserCreated",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

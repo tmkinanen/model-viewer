@@ -1,0 +1,17 @@
+﻿{
+  "RateOfChange": "Low",
+  "Group": "",
+  "SourcePriority": [],
+  "SchemaVersion": "1.1",
+  "MementoClassname": "PropertyDetailsMemento",
+  "Id": "511e39c1-8ff3-4ab9-807d-1f40463901db_BI_PROPERTY_DETAILS",
+  "ExternalId": null,
+  "TypeName": "BI property details",
+  "Name": "",
+  "Description": null,
+  "ParentTypeName": "Association end",
+  "ParentId": "511e39c1-8ff3-4ab9-807d-1f40463901db",
+  "CreationMethod": "Undefined",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

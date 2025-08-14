@@ -1,0 +1,20 @@
+{
+  "Visibility": "Public",
+  "IsDerived": false,
+  "Multiplicity": "0..1",
+  "DatatypeTypeName": "Attribute datatype",
+  "DatatypeId": "Attribute datatype.money",
+  "PreferredPosition": 2,
+  "SchemaVersion": "1.0",
+  "MementoClassname": "ElementAttributeMemento",
+  "Id": "2ddd0282-836f-427e-a81b-d768c9975dbc",
+  "ExternalId": null,
+  "TypeName": "Attribute",
+  "Name": "Amount",
+  "Description": null,
+  "ParentTypeName": "Class",
+  "ParentId": "3b0dc7b7-c1ad-4f35-9b72-eebc7637a407",
+  "CreationMethod": "UserCreated",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

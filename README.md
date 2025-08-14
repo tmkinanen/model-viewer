@@ -124,6 +124,84 @@ Examples:
 - Branch value
   - If no branch is provided, the server uses the repository's default branch. You can enter just the branch name (e.g., develop), a full ref (e.g., refs/heads/develop), a tag (refs/tags/v1), or a commit SHA.
 
+## Deploy to Azure
+
+There are several good options. The simplest is Azure App Service (Linux). This app already listens on `process.env.PORT`, so it works on Azure without code changes.
+
+Option A — Azure App Service (Linux) via Azure Portal
+- Prerequisites: An Azure subscription and a Resource Group.
+- Create an App Service:
+  - Runtime stack: Node 18 LTS (or newer)
+  - Region and plan: your choice (Linux plan)
+- Deploy code:
+  - Quick test: Zip Deploy from the Portal under Deployment Center (upload the repo contents) or link your GitHub repo.
+  - Startup command: leave empty (App Service will run `npm start`).
+- Browse the site: `https://<your-app-name>.azurewebsites.net`
+
+Option B — Azure App Service via GitHub Actions
+- In the Azure Portal > App Service > Deployment Center, choose GitHub and let Azure create a workflow. Or add one manually like below.
+- Required GitHub secrets: `AZURE_WEBAPP_PUBLISH_PROFILE` (download from App Service > Overview > Get publish profile).
+- Example `.github/workflows/deploy.yml`:
+
+  name: Deploy to Azure Web App
+  on:
+    push:
+      branches: [ main ]
+  jobs:
+    build-and-deploy:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v4
+        - uses: actions/setup-node@v4
+          with:
+            node-version: '18'
+        - run: npm ci || true
+        - uses: azure/webapps-deploy@v3
+          with:
+            app-name: YOUR_WEBAPP_NAME
+            publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+            package: .
+
+Option C — Azure DevOps Pipelines to Azure App Service
+- Create a service connection to your Azure subscription.
+- Minimal `azure-pipelines.yml`:
+
+  trigger:
+    - main
+  pool:
+    vmImage: 'ubuntu-latest'
+  steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '18.x'
+    - script: |
+        npm ci || true
+      displayName: 'Install'
+    - task: ArchiveFiles@2
+      inputs:
+        rootFolderOrFile: '$(Build.SourcesDirectory)'
+        includeRootFolder: false
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/site.zip'
+        replaceExistingArchive: true
+    - task: AzureWebApp@1
+      inputs:
+        azureSubscription: '<Your Service Connection>'
+        appName: '<Your App Service Name>'
+        package: '$(Build.ArtifactStagingDirectory)/site.zip'
+
+Option D — Azure App Service for Containers or Azure Container Apps
+- A minimal Dockerfile is included. Build and push an image:
+  - docker build -t yourregistry.azurecr.io/model-viewer:latest .
+  - docker push yourregistry.azurecr.io/model-viewer:latest
+- Create an App Service (Docker) or a Container App pointing to that image. No env vars are required for auth; users provide PAT from the browser.
+
+Notes
+- Authentication: This app does not require a server-side PAT. Each user enters their Username + PAT in Settings; the browser sends it per request to the server proxy.
+- Default port: Azure sets the `PORT` environment variable; the server will bind to it automatically.
+- Node version: If needed, set App Service > Configuration > General Settings to Node 18.
+- Static Web Apps: Not recommended here because the viewer relies on a server endpoint `/api/azdo/items` for Azure DevOps access.
+
 ## Scripts
 - start: node index.js
 

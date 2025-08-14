@@ -1,0 +1,14 @@
+{
+  "SchemaVersion": "1.0",
+  "MementoClassname": "ElementMemento",
+  "Id": "SYSTEM_PROJECT",
+  "ExternalId": null,
+  "TypeName": "Project",
+  "Name": "DemoDW",
+  "Description": null,
+  "ParentTypeName": null,
+  "ParentId": null,
+  "CreationMethod": "SystemCreated",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

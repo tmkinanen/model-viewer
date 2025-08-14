@@ -1,0 +1,20 @@
+{
+  "Visibility": "Public",
+  "IsDerived": false,
+  "Multiplicity": "0..1",
+  "DatatypeTypeName": "Attribute datatype",
+  "DatatypeId": "Attribute datatype.startdate",
+  "PreferredPosition": 0,
+  "SchemaVersion": "1.0",
+  "MementoClassname": "ElementAttributeMemento",
+  "Id": "2d0cab85-eba4-47ce-9c33-01d5fec109ba",
+  "ExternalId": null,
+  "TypeName": "Attribute",
+  "Name": "Start date",
+  "Description": null,
+  "ParentTypeName": "Class",
+  "ParentId": "bddcb368-b159-4fa8-8700-c1ac8cb1e986",
+  "CreationMethod": "UserCreated",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

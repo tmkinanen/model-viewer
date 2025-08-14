@@ -1,0 +1,14 @@
+﻿{
+  "SchemaVersion": "1.1",
+  "MementoClassname": "ElementMemento",
+  "Id": "59136cf9-257c-4bd4-801d-a51aad0666d5",
+  "ExternalId": null,
+  "TypeName": "Submodel",
+  "Name": "Finance",
+  "Description": null,
+  "ParentTypeName": "Submodel",
+  "ParentId": "3bcfe9a0-45c9-4ea8-ab2d-e659831d53b9",
+  "CreationMethod": "UserCreated",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

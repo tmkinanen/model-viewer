@@ -1,0 +1,14 @@
+﻿{
+  "SchemaVersion": "1.1",
+  "MementoClassname": "ElementMemento",
+  "Id": "64170a50-7714-4238-b90c-a22213e66d5e",
+  "ExternalId": null,
+  "TypeName": "Submodel",
+  "Name": "Human resources",
+  "Description": null,
+  "ParentTypeName": "Submodel",
+  "ParentId": "3bcfe9a0-45c9-4ea8-ab2d-e659831d53b9",
+  "CreationMethod": "UserCreated",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

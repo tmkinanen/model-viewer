@@ -1,0 +1,17 @@
+{
+  "IsDerived": false,
+  "IsAbstract": false,
+  "IsMetaClass": false,
+  "SchemaVersion": "1.0",
+  "MementoClassname": "ClassMemento",
+  "Id": "e679e75d-753c-4c55-a2d8-fc51b9424863",
+  "ExternalId": null,
+  "TypeName": "Class",
+  "Name": "Person's email address",
+  "Description": null,
+  "ParentTypeName": "Submodel",
+  "ParentId": "86140b4d-76f9-402b-8336-b5b6d13e08a7",
+  "CreationMethod": "UserCreated",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

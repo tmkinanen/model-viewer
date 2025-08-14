@@ -1,0 +1,8 @@
+SourceSystems;Table;Column;InPrimaryKey;References;Skip;Class;Property;Group;AlreadyHashed;VersionColumnIndex;InLogicalKey;Transformation;ColumnSize
+OrgMaster;RAW_ORGANIZATION;ORG_ID;x;;;Organization;Code;;;;;;
+OrgMaster;RAW_ORGANIZATION;NAME;;;;Organization;Name;;;;;;
+;;;;;;;;;;;;;
+OrgMaster;RAW_ORGANIZATIONUNIT;ORGUNIT_ID;x;;;Organization unit;Code;;;;;;
+OrgMaster;RAW_ORGANIZATIONUNIT;NAME;;;;Organization unit;Name;;;;;;
+OrgMaster;RAW_ORGANIZATIONUNIT;PARENTUNIT_ID;;;;Organization unit;Parent unit;;;;;;
+OrgMaster;RAW_ORGANIZATIONUNIT;ORG_ID;;RAW_ORGANIZATION.ORG_ID;;Organization unit;Organization;;;;;;

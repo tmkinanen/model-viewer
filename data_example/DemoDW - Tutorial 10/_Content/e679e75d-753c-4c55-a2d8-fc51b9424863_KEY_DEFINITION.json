@@ -1,0 +1,28 @@
+{
+  "KeyType": "Non-Business key",
+  "MayNotBeValid": false,
+  "KeyElementIds": [
+    "33ca43c3-3a53-4b23-822f-5fb3dfb0b59f",
+    "baf01bf6-4569-49b5-a65b-c6e556e55df1"
+  ],
+  "ApprovedKeyElementNames": [
+    "email",
+    "Person"
+  ],
+  "ApprovedKeyElementIds": [
+    "33ca43c3-3a53-4b23-822f-5fb3dfb0b59f",
+    "baf01bf6-4569-49b5-a65b-c6e556e55df1"
+  ],
+  "SchemaVersion": "1.0",
+  "MementoClassname": "KeyDefinitionMemento",
+  "Id": "e679e75d-753c-4c55-a2d8-fc51b9424863_KEY_DEFINITION",
+  "ExternalId": null,
+  "TypeName": "Key definition",
+  "Name": "Key definition",
+  "Description": null,
+  "ParentTypeName": "Class",
+  "ParentId": "e679e75d-753c-4c55-a2d8-fc51b9424863",
+  "CreationMethod": "Undefined",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

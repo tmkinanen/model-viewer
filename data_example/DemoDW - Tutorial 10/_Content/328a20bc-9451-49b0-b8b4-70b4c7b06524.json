@@ -1,0 +1,21 @@
+{
+  "ConnectionStringTemplate": "Server=.;Trusted_connection=true;TrustServerCertificate=true;",
+  "ConnectionType": "Native",
+  "EnvironmentType": "Development",
+  "DatabaseFilter": "DemoDW",
+  "DefaultSqlTarget": true,
+  "PlatformTypename": "SQL database platform",
+  "PlatformId": "SQL database platform.SQL Server",
+  "SchemaVersion": "1.0",
+  "MementoClassname": "DatabaseServerInstanceMemento",
+  "Id": "328a20bc-9451-49b0-b8b4-70b4c7b06524",
+  "ExternalId": "HH3w7U6FYGwEOA8S",
+  "TypeName": "Database server instance",
+  "Name": "DemoDW",
+  "Description": "",
+  "ParentTypeName": "Project",
+  "ParentId": "SYSTEM_PROJECT",
+  "CreationMethod": "ImportedFromExternal",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

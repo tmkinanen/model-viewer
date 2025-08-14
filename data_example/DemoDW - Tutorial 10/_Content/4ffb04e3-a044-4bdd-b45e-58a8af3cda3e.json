@@ -1,0 +1,14 @@
+﻿{
+  "SchemaVersion": "1.1",
+  "MementoClassname": "ElementMemento",
+  "Id": "4ffb04e3-a044-4bdd-b45e-58a8af3cda3e",
+  "ExternalId": null,
+  "TypeName": "Submodel",
+  "Name": "Production",
+  "Description": null,
+  "ParentTypeName": "Conceptual model",
+  "ParentId": "SYSTEM_CONCEPTUALMODEL",
+  "CreationMethod": "UserCreated",
+  "LifeCycleState": "Active",
+  "Tags": null
+}

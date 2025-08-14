@@ -1,0 +1,14 @@
+{
+  "SchemaVersion": "1.0",
+  "MementoClassname": "ElementMemento",
+  "Id": "MODEL_DW",
+  "ExternalId": null,
+  "TypeName": "Model",
+  "Name": "DW Model",
+  "Description": null,
+  "ParentTypeName": "Project",
+  "ParentId": "SYSTEM_PROJECT",
+  "CreationMethod": "SystemCreated",
+  "LifeCycleState": "Active",
+  "Tags": null
+}
