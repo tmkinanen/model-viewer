@@ -139,23 +139,48 @@ const server = http.createServer((req, res) => {
     function requestJson(options) {
       return new Promise((resolve, reject) => {
         const req = https.request(options, (resp) => {
-          let data = '';
-          resp.on('data', (chunk) => (data += chunk));
+          const chunks = [];
+          resp.on('data', (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
           resp.on('end', () => {
             const status = resp.statusCode || 0;
             const ctype = (resp.headers && (resp.headers['content-type'] || resp.headers['Content-Type'])) || '';
+            const buf = Buffer.concat(chunks);
+            // Decode with BOM/encoding detection
+            let text = '';
+            if (buf.length >= 2 && buf[0] === 0xFE && buf[1] === 0xFF) {
+              // UTF-16 BE -> swap then decode as LE
+              const swapped = Buffer.allocUnsafe(buf.length - 2);
+              for (let i = 2, j = 0; i + 1 < buf.length; i += 2, j += 2) { swapped[j] = buf[i + 1]; swapped[j + 1] = buf[i]; }
+              text = swapped.toString('utf16le');
+            } else if (buf.length >= 2 && buf[0] === 0xFF && buf[1] === 0xFE) {
+              // UTF-16 LE
+              text = buf.slice(2).toString('utf16le');
+            } else if (buf.length >= 3 && buf[0] === 0xEF && buf[1] === 0xBB && buf[2] === 0xBF) {
+              // UTF-8 BOM
+              text = buf.slice(3).toString('utf8');
+            } else {
+              // Heuristic: if many NULs, try utf16le
+              const nulCount = Math.min(buf.length, 64);
+              let zeros = 0; for (let i = 0; i < nulCount; i++) if (buf[i] === 0x00) zeros++;
+              if (zeros > 0 && zeros / Math.max(1, nulCount) > 0.2) {
+                try { text = buf.toString('utf16le'); } catch { text = buf.toString('utf8'); }
+              } else {
+                text = buf.toString('utf8');
+              }
+            }
+
             if (status >= 200 && status < 300) {
               // Prefer JSON when content-type is JSON; otherwise, try JSON then fall back to raw text
               const isJson = /application\/json/i.test(ctype);
               if (isJson) {
-                try { return resolve(JSON.parse(data)); } catch (e) { return reject(e); }
+                try { return resolve(JSON.parse(text)); } catch (e) { return reject(e); }
               }
-              try { return resolve(JSON.parse(data)); } catch {
+              try { return resolve(JSON.parse(text)); } catch {
                 // Non-JSON successful response: return raw body so caller can interpret (e.g., file content)
-                return resolve({ __raw: true, body: data });
+                return resolve({ __raw: true, body: text });
               }
             } else {
-              const bodyPreview = (data || '').slice(0, 512);
+              const bodyPreview = text.slice(0, 512);
               return reject(new Error(`Azure DevOps API error ${status}: ${bodyPreview}`));
             }
           });
@@ -378,8 +403,12 @@ const server = http.createServer((req, res) => {
           // 1) JSON item wrapper: { path, content, ... }
           // 2) Raw body (non-JSON): { __raw: true, body: '...' } from requestJson fallback
           if (j && j.__raw) {
-            log('Non-JSON content received for file (treating as raw text)', { path: itemPath, bytes: (j.body && j.body.length) || 0 });
-            return { path: String(itemPath).replace(/^\//, ''), text: j.body };
+            const body = typeof j.body === 'string' ? j.body : '';
+            const looksJson = /^[\uFEFF\s]*[\[{\"0-9tfn-]/i.test(body);
+            if (!looksJson) {
+              log('Non-JSON content received for file (treating as raw text)', { path: itemPath, bytes: body.length });
+            }
+            return { path: String(itemPath).replace(/^\//, ''), text: body };
           }
           const content = j && (j.content || (Array.isArray(j.value) && j.value[0] && j.value[0].content));
           if (typeof content === 'string') {
