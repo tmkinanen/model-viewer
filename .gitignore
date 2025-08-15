@@ -12,6 +12,8 @@ pnpm-debug.log*
 # OS / IDE
 .DS_Store
 Thumbs.db
+# IDE project files are not needed for builds/deployments and are intentionally ignored.
+# They are unrelated to Docker and do not affect whether git is installed in the image.
 .idea/
 .vscode/
 *.iml
@@ -27,3 +29,4 @@ Thumbs.db
 .env.*
 
 
+/DSharp_Brand-book_250313.pdf

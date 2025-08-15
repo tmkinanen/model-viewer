@@ -17,24 +17,28 @@
   --btn-secondary-text:#e6eefc;
   --canvas-bg:#0b1220;
 }
-/* DSharp theme */
+/* DSharp theme
+  NOTE: Align these with DSharp_Brand-book_250313.pdf (served at /DSharp_Brand-book_250313.pdf).
+  Update --brand, --brand-2, --brand-3, background and text colors per the brand palette.
+*/
 [data-theme="dsharp"]{
-  /* Deeper navy background and brighter accent to match DSharp Studio */
-  --bg:#070e1c;                 /* overall page background */
-  --text:#eef6ff;               /* high-contrast text on dark */
-  --muted:#b9c8ff;              /* muted label text */
-  --border:#142040;             /* subtle borders */
-  --card:#0a1530;               /* card background */
-  --brand:#0b6fb8;              /* brand base */
-  --brand-2:#2ea8ff;            /* primary accent (electric blue) */
-  --brand-3:#1463d6;            /* darker accent */
-  --header-bg:linear-gradient(180deg,#07132a 0%, #0a1c36 100%); /* deeper hero gradient */
-  --header-text:#ffffff;
-  --input-bg:#0d2348;           /* inputs on dark */
-  --input-text:#eaf2ff;
-  --input-border:#2b4574;
-  --btn-secondary-text:#dbe7ff;
-  --canvas-bg:#081427;          /* diagram canvas bg */
+  /* DSharp brand palette (from brand book) */
+  --bg:#292628;                 /* Black */
+  --text:#e6ded0;               /* Ivory - high-contrast text */
+  --muted:#aac6bd;              /* Opal Light - muted/accent text */
+  --border:#454041;             /* Dark Gray - borders */
+  --card:#454041;               /* Dark Gray - card background */
+  --brand:#577164;              /* Opal Dark - brand base */
+  --brand-2:#aac6bd;            /* Opal Light - primary accent */
+  --brand-3:#454041;            /* Dark Gray - secondary gradient stop */
+  --accent-rust:#9a5635;        /* Rust - secondary accent */
+  --header-bg:linear-gradient(180deg,#454041 0%, #292628 100%); /* Dark Gray to Black */
+  --header-text:#e6ded0;        /* Ivory */
+  --input-bg:#292628;           /* Black */
+  --input-text:#e6ded0;         /* Ivory */
+  --input-border:#577164;       /* Opal Dark */
+  --btn-secondary-text:#e6ded0; /* Ivory */
+  --canvas-bg:#e6ded0;          /* Ivory */
 }
 /* Light theme */
 [data-theme="light"]{
@@ -75,7 +79,12 @@
 
 body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;color:var(--text);background:var(--bg)}
 header{padding:14px 18px;border-bottom:1px solid var(--border);background:var(--header-bg);color:var(--header-text);position:sticky;top:0;z-index:10}
+.brand-row{display:flex;align-items:center;gap:10px}
 header h1{margin:0 0 10px 0;font-size:22px;font-weight:700;letter-spacing:.2px}
+#brandLogo{height:128px;width:auto;display:block}
+@media (max-width: 520px){
+  #brandLogo{height:96px}
+}
 .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .controls .btn{flex:0 0 auto;justify-content:center;font-size:13px}
 .azdo-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -140,24 +149,24 @@ footer{padding:12px 16px;border-top:1px solid var(--border);background:var(--car
 [data-theme="dsharp"] header h1{letter-spacing:.3px}
 [data-theme="dsharp"] .btn{
   background: linear-gradient(180deg, var(--brand-2) 0%, var(--brand-3) 100%);
-  border-color: rgba(46,168,255,.6);
-  box-shadow: 0 6px 18px rgba(46,168,255,.18), 0 1px 0 rgba(255,255,255,.06) inset;
+  border-color: rgba(170,198,189,.6); /* Opal Light */
+  box-shadow: 0 6px 18px rgba(170,198,189,.18), 0 1px 0 rgba(255,255,255,.06) inset;
 }
-[data-theme="dsharp"] .btn:hover{filter:none;box-shadow:0 8px 22px rgba(46,168,255,.26), 0 1px 0 rgba(255,255,255,.09) inset}
+[data-theme="dsharp"] .btn:hover{filter:none;box-shadow:0 8px 22px rgba(170,198,189,.26), 0 1px 0 rgba(255,255,255,.09) inset}
 [data-theme="dsharp"] .btn.secondary{
   background: transparent;
   color: var(--btn-secondary-text);
-  border-color: #3b82f6;
+  border-color: var(--brand-2); /* Opal Light */
   box-shadow: 0 0 0 0 rgba(0,0,0,0);
 }
-[data-theme="dsharp"] .tree-node:hover{background: rgba(46,168,255,.10)}
+[data-theme="dsharp"] .tree-node:hover{background: rgba(170,198,189,.10)}
 [data-theme="dsharp"] .tree-node .badge{
-  background: rgba(46,168,255,.12);
-  color: #000;
-  border: 1px solid rgba(46,168,255,.35);
+  background: rgba(170,198,189,.12); /* Opal Light tint */
+  color: #fff !important;
+  border: 1px solid rgba(170,198,189,.35);
 }
 [data-theme="dsharp"] #loading .loader{
-  box-shadow: 0 14px 60px rgba(46,168,255,.18), 0 0 1px rgba(255,255,255,.06) inset;
+  box-shadow: 0 14px 60px rgba(170,198,189,.18), 0 0 1px rgba(255,255,255,.06) inset;
 }
 
 

@@ -60,6 +60,7 @@ Notes:
 Themes:
 - Open Settings and choose Theme (DSharp, Light, or Dark). The selection is stored locally and applied immediately.
 - You can switch themes anytime; the UI colors, header, and inputs adapt accordingly.
+- The DSharp theme and logo are sourced from https://stapplicationshare.z6.web.core.windows.net (logo and optional theme CSS). If the external CSS is unavailable, the built-in DSharp variables in styles.css are used as a fallback.
 
 Demo project:
 - Click “Load Demo Project” to load the included data_example/DemoDW - Tutorial 10 dataset. It uses the DSharp _Content format and demonstrates the viewer’s parsing and rendering.
@@ -216,3 +217,46 @@ Private/internal use example.
 - Recommended: Deploy using the provided Dockerfile. The image installs `git`, `openssh`, and `ca-certificates`, so cloning via HTTPS works out of the box.
 - Without containers (e.g., Azure App Service running Node without a custom container): Ensure the runtime has git installed (Ubuntu-based images: `apt-get update && apt-get install -y git ca-certificates`) or uncheck "Use local clone" in Settings to use the REST-based loader (slower for large repos).
 - Network: Outbound HTTPS to `dev.azure.com` must be allowed.
+
+### FAQ: "Do we need workspace.xml to install git for Docker?"
+- No. `workspace.xml` is an IntelliJ/WebStorm IDE settings file located under `.idea/`. It is intentionally ignored by git and has nothing to do with Docker builds or installing packages in the image.
+- Git inside the running container is provided by the Dockerfile. This repo’s Dockerfile already installs git: `RUN apk add --no-cache git openssh ca-certificates`.
+
+### Why did Azure not include git when we deployed?
+- If you deploy your app as "Code" to Azure App Service (ZipDeploy or Oryx build), Azure ignores your Dockerfile and builds a Node app image without git. In that mode, the server won’t have git, and `Use local clone` will fail.
+- To ensure git is present automatically, deploy as a container:
+  - Use Azure App Service for Containers or Azure Container Apps and point it to a container image built from this Dockerfile (via Azure DevOps/GitHub Actions/ACR).
+  - Or locally `docker build -t <your-image> .` and push to a registry, then configure the Web App to run that image.
+
+### TL;DR
+- `workspace.xml` is irrelevant to Docker; keep it ignored.
+- Use the Dockerfile-based deployment (container) to guarantee git is installed.
+- If you must deploy as Code, either install git in the hosting environment (not recommended) or disable "Use local clone" (slower REST loader).
+
+## Brand book and theme colors
+- The official DSharp brand book is included in the project root and served by the app: /DSharp_Brand-book_250313.pdf
+- DSharp theme ([data-theme="dsharp"]) now uses the official palette:
+  - Opal Light: #aac6bd (RGB 170,198,189)
+  - Opal Dark: #577164 (RGB 87,113,100)
+  - Ivory: #e6ded0 (RGB 230,222,208)
+  - Dark Gray: #454041 (RGB 69,64,65)
+  - Black: #292628 (RGB 41,38,40)
+  - Rust (secondary): #9a5635 (RGB 154,86,53)
+- Gradients allowed (per brand book):
+  - Opal Light → Opal Dark
+  - Opal Dark → Dark Gray
+  - Dark Gray → Black
+  - Black → Ivory
+  - Ivory → Opal Light
+- Mapping to CSS variables in styles.css:
+  - --bg: Black (#292628)
+  - --text: Ivory (#e6ded0)
+  - --muted: Opal Light (#aac6bd)
+  - --border: Dark Gray (#454041)
+  - --card: Dark Gray (#454041)
+  - --brand: Opal Dark (#577164)
+  - --brand-2: Opal Light (#aac6bd)
+  - --brand-3: Dark Gray (#454041)
+  - --accent-rust: Rust (#9a5635)
+  - Header gradient: Dark Gray → Black
+- The logo automatically switches to the white PNG on dark backgrounds (DSharp/Dark themes) and black PNG on light theme.

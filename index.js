@@ -12,6 +12,10 @@ const mime = {
   '.svg': 'image/svg+xml',
   '.json': 'application/json; charset=UTF-8',
   '.ico': 'image/x-icon',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.pdf': 'application/pdf',
 };
 
 const https = require('https');
@@ -80,6 +84,100 @@ const server = http.createServer((req, res) => {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message || String(e) }));
     }
+    return;
+  }
+
+  // API: Discover DSharp logo URL from external page
+  if (pathname === '/api/dsharp/logo') {
+    const ORIGIN = 'https://stapplicationshare.z6.web.core.windows.net';
+    // Helper: simple GET text
+    function getText(url) {
+      return new Promise((resolve, reject) => {
+        const req2 = https.request(url, (resp) => {
+          const chunks = [];
+          resp.on('data', (c) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
+          resp.on('end', () => {
+            const buf = Buffer.concat(chunks);
+            // Assume UTF-8 for HTML
+            const txt = buf.toString('utf8');
+            if ((resp.statusCode || 0) >= 200 && (resp.statusCode || 0) < 300) return resolve(txt);
+            reject(new Error('HTTP ' + resp.statusCode));
+          });
+        });
+        req2.on('error', reject);
+        req2.end();
+      });
+    }
+    function toAbsolute(href) {
+      try {
+        if (!href) return null;
+        if (/^https?:\/\//i.test(href)) return href;
+        if (href.startsWith('//')) return 'https:' + href;
+        if (href.startsWith('/')) return ORIGIN + href;
+        return ORIGIN.replace(/\/$/, '') + '/' + href.replace(/^\//, '');
+      } catch { return null; }
+    }
+    (async () => {
+      try {
+        const html = await getText(ORIGIN);
+        const candidates = [];
+        // link rel icons
+        const linkIconRe = /<link[^>]+rel=["']([^"']*)["'][^>]*href=["']([^"']+)["'][^>]*>/gi;
+        let m;
+        while ((m = linkIconRe.exec(html))) {
+          const rel = (m[1] || '').toLowerCase();
+          const href = m[2] || '';
+          if (/(icon|shortcut|mask-icon)/.test(rel) && /\.(svg|png|ico)/i.test(href)) {
+            candidates.push(toAbsolute(href));
+          }
+        }
+        // images with logo-ish filenames
+        const imgRe = /<(?:img|source|use)[^>]+(?:src|href)=["']([^"']+)["'][^>]*>/gi;
+        while ((m = imgRe.exec(html))) {
+          const href = m[1] || '';
+          if (/\.(svg|png|jpg|jpeg)/i.test(href) && /(logo|dsharp|brand)/i.test(href)) {
+            candidates.push(toAbsolute(href));
+          }
+        }
+        // Also scan generic asset references in HTML/CSS
+        const anyRefRe = /(src|href)\s*=\s*["']([^"']+\.(svg|png))["']/gi;
+        while ((m = anyRefRe.exec(html))) {
+          const href = m[2] || '';
+          if (/(logo|dsharp|brand)/i.test(href)) candidates.push(toAbsolute(href));
+        }
+        // Deduplicate and prioritize: prefer SVG containing 'logo'/'dsharp'
+        const uniq = Array.from(new Set(candidates.filter(Boolean)));
+        uniq.sort((a, b) => {
+          const score = (u) => {
+            let s = 0;
+            if (/\.svg$/i.test(u)) s += 4;
+            if (/(logo|dsharp)/i.test(u)) s += 3;
+            if (/brand/i.test(u)) s += 1;
+            if (/favicon/i.test(u)) s -= 1;
+            return -s;
+          };
+          return score(a) - score(b);
+        });
+        const url = uniq[0] || null;
+        if (!url) {
+          // Fallback to a few well-known guesses
+          const fallbacks = [
+            ORIGIN + '/dsharp-data-solutions.svg',
+            ORIGIN + '/dsharp-logo.svg',
+            ORIGIN + '/assets/dsharp-logo.svg',
+            ORIGIN + '/dsharp-logo.png'
+          ];
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ url: fallbacks[0], candidates: fallbacks }));
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ url }));
+      } catch (e) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message || String(e) }));
+      }
+    })();
     return;
   }
 

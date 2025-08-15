@@ -65,9 +65,48 @@
   });
 
   // Theme apply/persist
+  function ensureDSharpThemeAssets(activeTheme){
+    const logoEl = document.getElementById('brandLogo');
+    const BLACK_LOGO = '/DSharp-logo_RGB-Black.png';
+    const WHITE_LOGO = '/DSharp-logo_RGB-White.png';
+    // Choose logo based on theme (white for dark backgrounds)
+    if (logoEl) {
+      logoEl.setAttribute('alt', 'DSharp Data Solutions');
+      logoEl.setAttribute('title', 'DSharp Data Solutions');
+      const theme = (activeTheme || '').toLowerCase();
+      const isDark = theme === 'dark' || theme === 'dsharp';
+      const desired = isDark ? WHITE_LOGO : BLACK_LOGO;
+      const current = logoEl.getAttribute('src') || '';
+      if (current !== desired) {
+        logoEl.onerror = () => { logoEl.style.display = 'block'; };
+        logoEl.onload = () => { logoEl.style.display = 'block'; };
+        logoEl.src = desired;
+      }
+    }
+    // Optional: attach external DSharp theme CSS when DSharp theme is active (kept as-is)
+    let linkEl = document.getElementById('dsharpThemeLink');
+    const DSHARP_CSS = 'https://stapplicationshare.z6.web.core.windows.net/dsharp-theme.css';
+    if (activeTheme === 'dsharp') {
+      if (!linkEl) {
+        linkEl = document.createElement('link');
+        linkEl.id = 'dsharpThemeLink';
+        linkEl.rel = 'stylesheet';
+        linkEl.href = DSHARP_CSS;
+        document.head.appendChild(linkEl);
+      } else if (linkEl.href !== DSHARP_CSS) {
+        linkEl.href = DSHARP_CSS;
+      }
+    } else {
+      if (linkEl && linkEl.parentNode) {
+        linkEl.parentNode.removeChild(linkEl);
+      }
+    }
+  }
+
   function applyTheme(name){
     const t = (name || 'dsharp').toLowerCase();
     try { document.documentElement.setAttribute('data-theme', t); } catch {}
+    try { ensureDSharpThemeAssets(t); } catch {}
   }
   themeSelect?.addEventListener('change', () => {
     const val = themeSelect.value || 'dsharp';
