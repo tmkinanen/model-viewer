@@ -1669,25 +1669,30 @@
     if(svg._dragHandlers){
       svg.removeEventListener('pointermove', svg._dragHandlers.move);
       svg.removeEventListener('pointerup', svg._dragHandlers.up);
+      svg.removeEventListener('pointercancel', svg._dragHandlers.up);
       svg.removeEventListener('wheel', svg._dragHandlers.wheel);
       svg.removeEventListener('pointerdown', svg._dragHandlers.down);
+      svg.removeEventListener('pointercancel', svg._dragHandlers.bgCancel);
     }
-    svg._dragHandlers = { move: onPointerMove, up: onPointerUp };
+    svg._dragHandlers = { move: onPointerMove, up: onPointerUp, bgCancel: onSvgPointerUp };
 
     // Attach handlers to each group
     for(const n of nodes){
       const g = n._el.g;
       g.style.cursor = 'move';
+      try { g.style.touchAction = 'none'; } catch {}
       g.addEventListener('pointerdown', onPointerDown);
     }
     svg.addEventListener('pointermove', onPointerMove);
     svg.addEventListener('pointerup', onPointerUp);
+    svg.addEventListener('pointercancel', onPointerUp);
 
     // Pan/zoom handlers on background
     let panning = null; // { startX, startY, viewX, viewY }
     function onSvgPointerDown(evt){
       // start panning only if clicking background (svg) or vp, not a node
       if (evt.target === svg || evt.target === vp) {
+        evt.preventDefault(); // prevent page scroll on iOS Safari during pan start
         const p = svgPointFromEvent(evt);
         panning = { startX: p.x, startY: p.y, viewX: view.x, viewY: view.y };
         svg.setPointerCapture?.(evt.pointerId);
@@ -1710,8 +1715,35 @@
     svg.addEventListener('pointerdown', onSvgPointerDown);
     svg.addEventListener('pointermove', onSvgPointerMove);
     svg.addEventListener('pointerup', onSvgPointerUp);
+    svg.addEventListener('pointercancel', onSvgPointerUp);
     svg.addEventListener('wheel', onWheel, { passive: false });
-    svg._dragHandlers = { move: onPointerMove, up: onPointerUp, wheel: onWheel, down: onSvgPointerDown };
+    svg._dragHandlers = { move: onPointerMove, up: onPointerUp, wheel: onWheel, down: onSvgPointerDown, bgCancel: onSvgPointerUp };
+
+    // Touch events fallback for older iOS Safari without PointerEvent
+    if (!(window && 'PointerEvent' in window)) {
+      const touchOpts = { passive: false };
+      function touchToEvt(e, currentTarget) {
+        const t = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]);
+        if (!t) return null;
+        return {
+          clientX: t.clientX,
+          clientY: t.clientY,
+          preventDefault: () => e.preventDefault(),
+          stopPropagation: () => e.stopPropagation(),
+          target: e.target,
+          currentTarget
+        };
+      }
+      // Node drag handlers
+      for (const n of nodes) {
+        const g = n._el.g;
+        g.addEventListener('touchstart', (e) => { const ev = touchToEvt(e, g); if (!ev) return; onPointerDown(ev); }, touchOpts);
+      }
+      // Background pan/drag updates
+      svg.addEventListener('touchmove', (e) => { const ev = touchToEvt(e, svg); if (!ev) return; onPointerMove(ev); onSvgPointerMove(ev); }, touchOpts);
+      svg.addEventListener('touchend', (e) => { const ev = touchToEvt(e, svg); if (!ev) return; onPointerUp(ev); onSvgPointerUp(ev); }, touchOpts);
+      svg.addEventListener('touchcancel', (e) => { onPointerUp(e); onSvgPointerUp(e); }, touchOpts);
+    }
 
     // Zoom buttons
     document.getElementById('zoomIn')?.addEventListener('click', ()=>{

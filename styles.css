@@ -99,7 +99,7 @@ main{display:grid;grid-template-columns:320px 1fr;min-height:calc(100vh - 140px)
 aside#tree{border-right:1px solid var(--border);padding:12px;overflow:auto;background:var(--card)}
 #diagram{position:relative;overflow:auto;background:var(--card);border-left:1px solid var(--border)}
 #modelHeader{padding:10px 14px;border-bottom:1px solid var(--border);background:var(--card);position:sticky;top:0;z-index:1;color:var(--muted);font-weight:600}
-#svg{width:100%;height:calc(100% - 46px);background:var(--canvas-bg)}
+#svg{width:100%;height:calc(100% - 46px);background:var(--canvas-bg);touch-action:none}
 .tree-node{padding:6px 8px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;gap:8px}
 .tree-node:hover{background:#eef2ff33}
 .tree-node .badge{margin-left:auto;font-size:12px;background:#eef2ff33;color:#000!important;border:1px solid #334155;border-radius:999px;padding:0 8px;min-width:22px;text-align:center}
