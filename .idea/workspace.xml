@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="a06c9853-30fa-4a1f-841c-450c5e55864b" name="Changes" comment="Azure corrections" />
+    <list default="true" id="a06c9853-30fa-4a1f-841c-450c5e55864b" name="Changes" comment="git for docker" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -75,7 +75,7 @@
       <updated>1755067784530</updated>
       <workItem from="1755067785550" duration="18369000" />
       <workItem from="1755102915072" duration="13663000" />
-      <workItem from="1755233045904" duration="968000" />
+      <workItem from="1755233045904" duration="1380000" />
     </task>
     <task id="LOCAL-00001" summary="Init">
       <option name="closed" value="true" />
@@ -269,7 +269,15 @@
       <option name="project" value="LOCAL" />
       <updated>1755233531254</updated>
     </task>
-    <option name="localTasksCounter" value="25" />
+    <task id="LOCAL-00025" summary="git for docker">
+      <option name="closed" value="true" />
+      <created>1755234218693</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1755234218693</updated>
+    </task>
+    <option name="localTasksCounter" value="26" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -294,6 +302,7 @@
     <MESSAGE value="DSharp.fi web page look" />
     <MESSAGE value="Publish instructions, include data_example in git." />
     <MESSAGE value="Azure corrections" />
-    <option name="LAST_COMMIT_MESSAGE" value="Azure corrections" />
+    <MESSAGE value="git for docker" />
+    <option name="LAST_COMMIT_MESSAGE" value="git for docker" />
   </component>
 </project>

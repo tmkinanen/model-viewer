@@ -207,3 +207,12 @@ Notes
 
 ## License
 Private/internal use example.
+
+
+
+## Deployment notes
+
+- Git requirement for Azure DevOps "Use local clone": When the Settings checkbox "Use local clone (faster)" is enabled, the server executes `git clone` to a temporary folder. This requires `git` to be installed and available on the server PATH. If git is missing, the server responds with HTTP 500 and a message like "Git not found on server PATH. Please install git on the server or disable 'Use local clone' and retry.".
+- Recommended: Deploy using the provided Dockerfile. The image installs `git`, `openssh`, and `ca-certificates`, so cloning via HTTPS works out of the box.
+- Without containers (e.g., Azure App Service running Node without a custom container): Ensure the runtime has git installed (Ubuntu-based images: `apt-get update && apt-get install -y git ca-certificates`) or uncheck "Use local clone" in Settings to use the REST-based loader (slower for large repos).
+- Network: Outbound HTTPS to `dev.azure.com` must be allowed.
