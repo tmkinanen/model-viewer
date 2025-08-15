@@ -4,9 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="a06c9853-30fa-4a1f-841c-450c5e55864b" name="Changes" comment="Publish instructions, include data_example in git.">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-    </list>
+    <list default="true" id="a06c9853-30fa-4a1f-841c-450c5e55864b" name="Changes" comment="Azure corrections" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -77,7 +75,7 @@
       <updated>1755067784530</updated>
       <workItem from="1755067785550" duration="18369000" />
       <workItem from="1755102915072" duration="13663000" />
-      <workItem from="1755233045904" duration="316000" />
+      <workItem from="1755233045904" duration="968000" />
     </task>
     <task id="LOCAL-00001" summary="Init">
       <option name="closed" value="true" />
@@ -263,7 +261,15 @@
       <option name="project" value="LOCAL" />
       <updated>1755153823055</updated>
     </task>
-    <option name="localTasksCounter" value="24" />
+    <task id="LOCAL-00024" summary="Azure corrections">
+      <option name="closed" value="true" />
+      <created>1755233531254</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1755233531254</updated>
+    </task>
+    <option name="localTasksCounter" value="25" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -287,6 +293,7 @@
     <MESSAGE value="UI changes" />
     <MESSAGE value="DSharp.fi web page look" />
     <MESSAGE value="Publish instructions, include data_example in git." />
-    <option name="LAST_COMMIT_MESSAGE" value="Publish instructions, include data_example in git." />
+    <MESSAGE value="Azure corrections" />
+    <option name="LAST_COMMIT_MESSAGE" value="Azure corrections" />
   </component>
 </project>

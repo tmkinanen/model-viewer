@@ -253,17 +253,28 @@ const server = http.createServer((req, res) => {
           } catch {}
           if (!pat) throw new Error('Missing PAT for git clone');
           const remote = `https://${encodeURIComponent(user)}:${encodeURIComponent(pat)}@dev.azure.com/${encodeURIComponent(org)}/${encodeURIComponent(project)}/_git/${encodeURIComponent(repo)}`;
-          // Create temp dir
-          const base = fs.mkdtempSync(path.join(os.tmpdir(), 'model-viewer-'));
-          const cloneDir = path.join(base, 'repo');
-          const redactedRemote = remote.replace(/:[^@]*@/, ':***@');
-          log('Clone start', { dir: cloneDir, remote: redactedRemote });
           const execAsync = (cmd, opts={}) => new Promise((resolve, reject) => {
             exec(cmd, { ...opts }, (err, stdout, stderr) => {
               if (err) return reject(new Error(stderr || err.message));
               resolve({ stdout, stderr });
             });
           });
+          // Preflight: ensure git is available
+          try {
+            await execAsync('git --version', { timeout: 5000 });
+          } catch (e) {
+            log('Git not available on PATH; aborting', { error: e.message });
+            setProgress(requestId, 100, 'Error: git not found on server');
+            res.writeHead(500, { 'Content-Type': 'application/json', 'X-Request-Id': requestId });
+            res.end(JSON.stringify({ error: 'Git not found on server PATH. Please install git on the server or disable "Use local clone" and retry.', requestId }));
+            setTimeout(() => clearProgress(requestId), 15000);
+            return;
+          }
+          // Create temp dir
+          const base = fs.mkdtempSync(path.join(os.tmpdir(), 'model-viewer-'));
+          const cloneDir = path.join(base, 'repo');
+          const redactedRemote = remote.replace(/:[^@]*@/, ':***@');
+          log('Clone start', { dir: cloneDir, remote: redactedRemote });
           try {
             // Shallow clone
             if (versionType === 'branch' || versionType === 'tag') {
@@ -331,11 +342,15 @@ const server = http.createServer((req, res) => {
             setTimeout(() => clearProgress(requestId), 15000);
             return;
           } catch (cloneErr) {
-            // Ensure cleanup and fall back to REST
+            // Ensure cleanup and do NOT fall back to REST (too slow)
             try { clearInterval(cloneTicker); } catch {}
-            log('Clone failed, falling back to REST', { error: cloneErr.message });
+            log('Clone failed; aborting (REST disabled)', { error: cloneErr.message });
             try { fs.rmSync(base, { recursive: true, force: true }); } catch {}
-            // proceed to REST below
+            setProgress(requestId, 100, 'Error during git clone');
+            res.writeHead(500, { 'Content-Type': 'application/json', 'X-Request-Id': requestId });
+            res.end(JSON.stringify({ error: `Git clone failed: ${cloneErr.message}. Please ensure git is installed and accessible on the server, or disable "Use local clone" and retry.`, requestId }));
+            setTimeout(() => clearProgress(requestId), 15000);
+            return;
           }
         }
 

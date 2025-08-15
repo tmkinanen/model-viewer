@@ -5,6 +5,9 @@ FROM node:18-alpine
 # Create app directory
 WORKDIR /usr/src/app
 
+# Install git and CA certificates for Azure DevOps cloning
+RUN apk add --no-cache git openssh ca-certificates
+
 # Copy only necessary files
 COPY package.json package-lock.json* ./
 
